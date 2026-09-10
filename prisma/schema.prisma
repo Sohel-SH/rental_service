@@ -1,0 +1,95 @@
+datasource db {
+  provider = "mysql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  password  String
+  phone     String?
+  role      String     @default("tenant") // "tenant", "owner", "admin"
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  properties Property[]
+  documents  Document[]
+  leads      Lead[]
+  tickets    Ticket[]
+}
+
+model Property {
+  id            String   @id @default(uuid())
+  title         String
+  description   String   @db.Text
+  price         Int
+  location      String
+  propertyType  String   // "apartment", "house", "pg", "commercial"
+  bhk           Int
+  images        String   @db.Text // Comma-separated image URLs
+  ownerId       String
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  isAvailable   Boolean  @default(true)
+  listingOption String   @default("rent") // "rent", "buy"
+  latitude      Float    @default(18.5913)
+  longitude     Float    @default(73.7389)
+  
+  // Custom Filter Customizations matching Nestaway popup
+  livingExperience String  @default("Managed by Owner") // "Select (Premium Furnished)", "Managed by Nestaway", "Managed by Owner"
+  lookingFor       String  @default("House") // "House", "Bed", "Room"
+  availableFor     String  @default("Family") // "Family", "Boys", "Girls"
+  furnishingType   String  @default("Semi Furnished") // "Semi Furnished", "Fully Furnished", "Unfurnished"
+  carpetArea       Int     @default(800)
+  parking          String  @default("Two Wheeler") // "Four Wheeler", "Two Wheeler"
+  availability     String  @default("Immediate") // "Immediate", "Within 7 Days", "Within 15 Days", "More than 15 Days"
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  leads         Lead[]
+  tickets       Ticket[]
+}
+
+model Lead {
+  id            String    @id @default(uuid())
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantId      String?
+  tenant        User?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  name          String
+  email         String
+  phone         String
+  message       String    @db.Text
+  status        String    @default("new") // "new", "contacted", "negotiating", "closed", "rejected"
+  assignedAgent String    @default("")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Document {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType String   // "id_proof", "agreement", "property_papers"
+  fileUrl      String
+  fileName     String   @default("")
+  status       String   @default("pending") // "pending", "verified", "rejected"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      User     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @db.Text
+  status      String   @default("open") // "open", "in_progress", "resolved", "closed"
+  priority    String   @default("medium") // "low", "medium", "high"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
