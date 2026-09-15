@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifyToken } from '@/lib/jwt';
+import bcrypt from 'bcryptjs';
+import { signToken, verifyToken } from '@/lib/jwt';
 
 export async function GET(request: Request) {
   try {
@@ -160,25 +161,100 @@ export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
+    const body = await request.json();
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    const {
+      title,
+      description,
+      price,
+      location,
+      propertyType,
+      bhk,
+      images,
+      latitude,
+      longitude,
+      listingOption,
+      livingExperience,
+      lookingFor,
+      availableFor,
+      furnishingType,
+      carpetArea,
+      parking,
+      availability,
+      ownerName,
+      ownerEmail,
+      ownerPhone,
+      ownerPassword,
+    } = body;
+
+    let ownerId: string | null = null;
+
+    if (token) {
+      const payload = await verifyToken(token);
+      if (payload && payload.id) {
+        ownerId = payload.id;
+        // Upgrade tenant to owner role if listing a property
+        if (payload.role === 'tenant') {
+          await prisma.user.update({
+            where: { id: payload.id },
+            data: { role: 'owner' },
+          });
+        }
+      }
     }
 
-    const payload = await verifyToken(token);
-    if (!payload || (payload.role !== 'owner' && payload.role !== 'admin')) {
+    // If no active session but landlord contact info provided, register/login landlord seamlessly
+    if (!ownerId && ownerEmail) {
+      let user = await prisma.user.findUnique({
+        where: { email: ownerEmail },
+      });
+
+      if (!user) {
+        const hashedPassword = await bcrypt.hash(ownerPassword || 'password123', 10);
+        user = await prisma.user.create({
+          data: {
+            name: ownerName || 'Property Owner',
+            email: ownerEmail,
+            phone: ownerPhone || '',
+            password: hashedPassword,
+            role: 'owner',
+          },
+        });
+      } else if (user.role === 'tenant') {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'owner' },
+        });
+      }
+
+      ownerId = user.id;
+
+      // Issue JWT session cookie for instant landlord login
+      const newToken = await signToken({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
+
+      cookieStore.set('token', newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        path: '/',
+      });
+    }
+
+    if (!ownerId) {
       return NextResponse.json(
-        { error: 'Forbidden. Landlords and Admins only.' },
-        { status: 403 }
+        { error: 'Please log in or provide your contact details to list your property.' },
+        { status: 401 }
       );
     }
 
-    const body = await request.json();
-    const { title, description, price, location, propertyType, bhk, images, latitude, longitude, listingOption, livingExperience, lookingFor, availableFor, furnishingType, carpetArea, parking, availability } = body;
-
     if (!title || !description || !price || !location || !propertyType || !bhk) {
       return NextResponse.json(
-        { error: 'Missing required property details.' },
+        { error: 'Missing required property details (Title, Description, Price, Location, Type, BHK).' },
         { status: 400 }
       );
     }
@@ -191,13 +267,12 @@ export async function POST(request: Request) {
         location,
         propertyType,
         bhk: Number(bhk),
-        images: Array.isArray(images) ? images.join(',') : '',
-        ownerId: payload.id,
+        images: Array.isArray(images) ? images.join(',') : typeof images === 'string' ? images : '',
+        ownerId,
         isAvailable: true,
         listingOption: listingOption || 'rent',
         latitude: latitude ? Number(latitude) : 18.5913,
         longitude: longitude ? Number(longitude) : 73.7389,
-        
         livingExperience: livingExperience || 'Managed by Owner',
         lookingFor: lookingFor || 'House',
         availableFor: availableFor || 'Family',

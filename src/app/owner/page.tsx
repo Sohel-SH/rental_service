@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -305,8 +306,19 @@ export default function OwnerDashboard() {
                   
                   {/* Create Property Form */}
                   <div className="card property-form-card">
-                    <h3>List a New Property</h3>
-                    <p className="form-sub-text">Fill out details to publish a rental listing in S.R Rental Services.</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <div>
+                        <h3>List a New Property</h3>
+                        <p className="form-sub-text">Fill out details to publish a rental listing in S.R Rental Services.</p>
+                      </div>
+                      <Link 
+                        href="/list-property" 
+                        className="btn btn-primary"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                      >
+                        ✨ Launch 5-Step Listing Wizard
+                      </Link>
+                    </div>
 
                     {formSuccess && <div className="alert-message success-alert">{formSuccess}</div>}
                     {formError && <div className="alert-message error-alert">{formError}</div>}

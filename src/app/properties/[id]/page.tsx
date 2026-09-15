@@ -245,8 +245,15 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                 </a>
               </div>
 
-              {/* Database Lead Form */}
-              <EnquiryForm propertyId={property.id.toString()} />
+              {/* Database Lead Form & WhatsApp Trigger */}
+              <EnquiryForm 
+                propertyId={property.id.toString()}
+                propertyTitle={property.title}
+                propertyPrice={property.price}
+                propertyLocation={property.location}
+                ownerName={property.ownerId?.name || 'Property Owner'}
+                ownerPhone={ownerPhone}
+              />
 
             </div>
           </div>

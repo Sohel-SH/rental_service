@@ -217,17 +217,14 @@ export default function Navbar() {
           <div className="navbar-actions-right-exact">
 
             {/* List Your Property CTA Button */}
-            {user && user.role === 'owner' ? (
-              <Link href="/owner" className="btn-list-property-exact">
+            <Link href="/list-property" className="btn-list-property-exact">
+              List Your Property
+            </Link>
+
+            {user && (user.role === 'owner' || user.role === 'admin') && (
+              <Link href={user.role === 'admin' ? '/admin' : '/owner'} className="btn-dashboard-nav-exact">
                 Dashboard
               </Link>
-            ) : (
-              <button
-                onClick={() => user ? router.push('/owner') : openAuthModal('login')}
-                className="btn-list-property-exact"
-              >
-                List Your Property
-              </button>
             )}
 
             {/* Menu Drawer Hamburger Button */}
@@ -303,6 +300,9 @@ export default function Navbar() {
 
                 <hr className="sidebar-divider" />
 
+                <Link href="/list-property" onClick={closeSidebar} className="sidebar-link-item highlight-link">
+                  ✨ List Your Property
+                </Link>
                 <Link href="/listings" onClick={closeSidebar} className="sidebar-link-item">
                   Explore
                 </Link>
@@ -337,6 +337,9 @@ export default function Navbar() {
             /* If NOT LOGGED IN Sidebar Content */
             <div className="sidebar-content-box">
               <div className="sidebar-links-list" style={{ marginTop: '2rem' }}>
+                <Link href="/list-property" onClick={closeSidebar} className="sidebar-link-item highlight-link">
+                  ✨ List Your Property
+                </Link>
                 <Link href="/listings" onClick={closeSidebar} className="sidebar-link-item">
                   Explore
                 </Link>
@@ -361,7 +364,7 @@ export default function Navbar() {
                 <Link href="/contact" onClick={closeSidebar} className="sidebar-link-item">
                   FAQ
                 </Link>
-                <Link href="/owner" onClick={closeSidebar} className="sidebar-link-item">
+                <Link href="/list-property" onClick={closeSidebar} className="sidebar-link-item">
                   For property owners
                 </Link>
               </div>
