@@ -6,8 +6,8 @@ import { URL } from 'url';
 // Make sure env configurations are loaded
 loadEnvConfig(process.cwd());
 
-const dbUrl = process.env.DATABASE_URL || 'mysql://root:@localhost:3306/sr_rentals';
-const parsedUrl = new URL(dbUrl);
+const dbUrl = process.env.DATABASE_URL;
+const parsedUrl = new URL(dbUrl || '');
 
 // Initialize MariaDB connection adapter with parsed individual options
 const adapter = new PrismaMariaDb({
