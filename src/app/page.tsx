@@ -31,6 +31,16 @@ export default async function HomePage() {
     dbError = true;
   }
 
+  let targetHost = 'localhost:3306';
+  if (process.env.DATABASE_URL) {
+    try {
+      const match = process.env.DATABASE_URL.match(/@([^:/]+)(?::(\d+))?/);
+      if (match) {
+        targetHost = `${match[1]}:${match[2] || 3306}`;
+      }
+    } catch (_) {}
+  }
+
   const premiumProperties = featuredProperties.slice(0, 3);
   const recommendedProperties = featuredProperties.slice(2, 6);
 
@@ -45,16 +55,19 @@ export default async function HomePage() {
               ⚠️ Database Connection Offline
             </h3>
             <p style={{ color: '#7f1d1d', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
-              S.R Rental Services is unable to connect to your MySQL database. The system tried connecting to <strong>localhost:3306</strong>, but the connection was refused.
+              S.R Rental Services is unable to connect to your MySQL database. The system tried connecting to <strong>{targetHost}</strong>, but the connection could not be established.
             </p>
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #fee2e2', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.25rem' }}>
               <h4 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: '#991b1b' }}>How to resolve this:</h4>
               <ol style={{ fontSize: '0.8125rem', paddingLeft: '1.25rem', color: '#571c1c', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <li>
-                  <strong>Option A: Start MySQL locally:</strong> If you are using XAMPP or WampServer, start the MySQL module. If MySQL is installed locally as a standalone service, make sure the service daemon is active.
+                  <strong>For Remote MySQL (cPanel / Cloud):</strong> Ensure your password special characters (like <code>@</code>) are URL-encoded as <code>%40</code>, and verify that <code>%</code> (wildcard) is added in cPanel under <strong>Remote MySQL &rarr; Add Access Host</strong>.
                 </li>
                 <li>
-                  <strong>Option B: Configure database connection:</strong> Open your <a href="file:///c:/Users/sheik/Freelancing%20Project/Atj_Projects/.env.local">.env.local</a> file and verify that the <code>DATABASE_URL</code> connection string matches your MySQL server login credentials.
+                  <strong>For Vercel Deployment:</strong> Add the <code>DATABASE_URL</code> environment variable in your Vercel Project Settings &rarr; Environment Variables.
+                </li>
+                <li>
+                  <strong>For Local Development:</strong> Open your <code>.env.local</code> file and verify that the <code>DATABASE_URL</code> connection string matches your MySQL server credentials.
                 </li>
               </ol>
             </div>

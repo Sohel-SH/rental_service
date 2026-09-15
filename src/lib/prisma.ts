@@ -6,16 +6,59 @@ import { URL } from 'url';
 // Make sure env configurations are loaded
 loadEnvConfig(process.cwd());
 
-const dbUrl = process.env.DATABASE_URL;
-const parsedUrl = new URL(dbUrl || '');
+function parseDatabaseUrl(urlStr?: string) {
+  if (!urlStr) {
+    return {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      password: '',
+      database: 'sr_rentals',
+    };
+  }
+
+  try {
+    const parsed = new URL(urlStr);
+    return {
+      host: parsed.hostname || 'localhost',
+      port: parsed.port ? Number(parsed.port) : 3306,
+      user: parsed.username || 'root',
+      password: decodeURIComponent(parsed.password || ''),
+      database: parsed.pathname ? parsed.pathname.replace(/^\//, '') : 'sr_rentals',
+    };
+  } catch {
+    // Fallback parser if URL has unencoded @ in password
+    const match = urlStr.match(/^mysql:\/\/([^:]+):(.*)@([^:/]+)(?::(\d+))?\/(.+)$/);
+    if (match) {
+      return {
+        user: match[1],
+        password: decodeURIComponent(match[2]),
+        host: match[3],
+        port: match[4] ? Number(match[4]) : 3306,
+        database: match[5],
+      };
+    }
+    return {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      password: '',
+      database: 'sr_rentals',
+    };
+  }
+}
+
+const dbConfig = parseDatabaseUrl(process.env.DATABASE_URL);
 
 // Initialize MariaDB connection adapter with parsed individual options
 const adapter = new PrismaMariaDb({
-  host: parsedUrl.hostname || 'localhost',
-  port: parsedUrl.port ? Number(parsedUrl.port) : 3306,
-  user: parsedUrl.username || 'root',
-  password: decodeURIComponent(parsedUrl.password || ''),
-  database: parsedUrl.pathname ? parsedUrl.pathname.replace(/^\//, '') : 'sr_rentals',
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  password: dbConfig.password,
+  database: dbConfig.database,
+  ssl: false,
+  connectTimeout: 10000,
 });
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
