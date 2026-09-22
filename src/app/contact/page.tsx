@@ -51,27 +51,41 @@ export default function ContactPage() {
 _Sent from S.R Rental Services Contact Portal_`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) return;
 
-    const rawMessage = buildWhatsAppMessage();
-    const encoded = encodeURIComponent(rawMessage);
-    const targetUrl = `https://wa.me/${helplineWhatsAppNumber}?text=${encoded}`;
+    setLoading(true);
+    setError('');
 
-    setWaUrl(targetUrl);
-    setSubmitted(true);
+    try {
+      // Save enquiry to leads database for admin dashboard
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: `[Topic: ${formData.inquiryType}] ${formData.message || 'General enquiry from contact page.'}`,
+        }),
+      });
 
-    if (typeof window !== 'undefined') {
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to submit enquiry');
+      }
+
+      setSubmitted(true);
+    } catch (err: any) {
+      console.error('Contact submit error:', err);
+      setError(err.message || 'An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleCopy = () => {
-    const text = buildWhatsAppMessage();
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
@@ -82,7 +96,7 @@ _Sent from S.R Rental Services Contact Portal_`;
         <div className="contact-header text-center">
           <span className="user-role-tag">Get in Touch</span>
           <h1>Contact S.R Rental Services</h1>
-          <p className="max-w-600">Have questions about properties, landlord packages, or tenancy policies? Fill out our enquiry form to chat on WhatsApp or visit our Pune office.</p>
+          <p className="max-w-600">Have questions about properties, landlord packages, or tenancy policies? Fill out our enquiry form to get in touch with our team.</p>
         </div>
 
         {/* 2-Column Split: Enquiry Form + Contact Info */}
@@ -94,43 +108,50 @@ _Sent from S.R Rental Services Contact Portal_`;
               <div className="enquiry-icon-badge">💬</div>
               <div>
                 <h2>Send Us an Enquiry</h2>
-                <p className="enquiry-subtitle-text">Fill out this quick form to initiate an instant WhatsApp chat with our support staff.</p>
+                <p className="enquiry-subtitle-text">Fill out this quick form and our support team will reach out to you in a short while.</p>
               </div>
             </div>
 
             {submitted ? (
-              <div className="enquiry-success-box animate-fadeIn">
-                <div className="wa-success-icon">✅</div>
-                <h3>Enquiry Generated!</h3>
-                <p className="wa-success-desc">
-                  Your WhatsApp message has been prepared for our team at <strong>+91 98765 43210</strong>.
+              <div className="enquiry-success-box animate-fadeIn" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                <div className="wa-success-icon" style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>✅</div>
+                <h3 style={{ color: '#15803d', fontSize: '1.35rem', fontWeight: '800', marginBottom: '0.5rem' }}>
+                  Enquiry Submitted Successfully!
+                </h3>
+                <p style={{ color: '#166534', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+                  Thank you, <strong>{formData.name}</strong>! Your message has been received by our central team. <strong>Our property team will reach out to you shortly</strong> on <strong>{formData.phone}</strong>.
                 </p>
 
+                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.5rem', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <span style={{ color: '#166534', fontWeight: '600' }}>📋 Topic:</span>
+                    <span style={{ color: '#14532d', fontWeight: '700' }}>{formData.inquiryType}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <span style={{ color: '#166534', fontWeight: '600' }}>📞 Phone:</span>
+                    <span style={{ color: '#14532d' }}>{formData.phone}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#166534', fontWeight: '600' }}>⚡ Status:</span>
+                    <span style={{ color: '#15803d', fontWeight: '700' }}>● Logged in Admin Command Center</span>
+                  </div>
+                </div>
+
                 <div className="wa-success-actions">
-                  <a
-                    href={waUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-whatsapp-direct"
-                  >
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.275.072.376-.044c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.043.072.043.419-.101.824z" />
-                    </svg>
-                    Open WhatsApp Chat
-                  </a>
-
                   <button
                     type="button"
-                    onClick={handleCopy}
-                    className="btn btn-outline-copy"
-                  >
-                    {copied ? '✓ Message Copied!' : '📋 Copy Message Text'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSubmitted(false)}
-                    className="btn-send-another"
+                    onClick={() => {
+                      setSubmitted(false);
+                      setFormData({
+                        name: user?.name || '',
+                        email: user?.email || '',
+                        phone: user?.phone || '',
+                        inquiryType: 'Tenant Looking for Home',
+                        message: '',
+                      });
+                    }}
+                    className="btn btn-primary w-full"
+                    style={{ padding: '0.75rem' }}
                   >
                     ← Send Another Enquiry
                   </button>
@@ -138,6 +159,7 @@ _Sent from S.R Rental Services Contact Portal_`;
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="enquiry-form-element">
+                {error && <div className="alert-message error-alert" style={{ marginBottom: '1rem' }}>⚠️ {error}</div>}
                 <div className="form-group">
                   <label className="form-label" htmlFor="cnt-name">Your Full Name <span className="req">*</span></label>
                   <input

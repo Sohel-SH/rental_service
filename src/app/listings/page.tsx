@@ -729,7 +729,7 @@ function ListingsContent() {
               <div className="modal-filter-section">
                 <h4>Living Experience</h4>
                 <div className="modal-pills-row">
-                  {['Select (Premium Furnished)', 'Managed by Nestaway', 'Managed by Owner'].map((opt) => (
+                  {['Select (Premium Furnished)', 'Managed by S.R Rentals', 'Managed by Owner'].map((opt) => (
                     <button 
                       key={opt}
                       type="button" 

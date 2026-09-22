@@ -1,95 +1,187 @@
-datasource db {
-  provider = "mysql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id        String     @id @default(uuid())
-  name      String
-  email     String     @unique
-  password  String
-  phone     String?
-  role      String     @default("tenant") // "tenant", "owner", "admin"
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  properties Property[]
-  documents  Document[]
-  leads      Lead[]
-  tickets    Ticket[]
+datasource db {
+  provider = "mysql"
 }
 
-model Property {
-  id            String   @id @default(uuid())
-  title         String
-  description   String   @db.Text
-  price         Int
-  location      String
-  propertyType  String   // "apartment", "house", "pg", "commercial"
-  bhk           Int
-  images        String   @db.Text // Comma-separated image URLs
-  ownerId       String
-  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  isAvailable   Boolean  @default(true)
-  listingOption String   @default("rent") // "rent", "buy"
-  latitude      Float    @default(18.5913)
-  longitude     Float    @default(73.7389)
-  
-  // Custom Filter Customizations matching Nestaway popup
-  livingExperience String  @default("Managed by Owner") // "Select (Premium Furnished)", "Managed by Nestaway", "Managed by Owner"
-  lookingFor       String  @default("House") // "House", "Bed", "Room"
-  availableFor     String  @default("Family") // "Family", "Boys", "Girls"
-  furnishingType   String  @default("Semi Furnished") // "Semi Furnished", "Fully Furnished", "Unfurnished"
-  carpetArea       Int     @default(800)
-  parking          String  @default("Two Wheeler") // "Four Wheeler", "Two Wheeler"
-  availability     String  @default("Immediate") // "Immediate", "Within 7 Days", "Within 15 Days", "More than 15 Days"
+model deal {
+  id                       String   @id
+  propertyId               String
+  buyerId                  String
+  sellerId                 String
+  dealType                 String   @default("RENTAL_LEASE")
+  finalPrice               Int
+  tokenPaid                Int      @default(0)
+  brokerageFee             Int      @default(0)
+  closingDate              DateTime @default(now())
+  status                   String   @default("COMPLETED")
+  notes                    String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime
+  user_deal_buyerIdTouser  user     @relation("deal_buyerIdTouser", fields: [buyerId], references: [id], onDelete: Cascade, map: "Deal_buyerId_fkey")
+  property                 property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Deal_propertyId_fkey")
+  user_deal_sellerIdTouser user     @relation("deal_sellerIdTouser", fields: [sellerId], references: [id], onDelete: Cascade, map: "Deal_sellerId_fkey")
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  leads         Lead[]
-  tickets       Ticket[]
+  @@index([buyerId], map: "Deal_buyerId_fkey")
+  @@index([propertyId], map: "Deal_propertyId_fkey")
+  @@index([sellerId], map: "Deal_sellerId_fkey")
 }
 
-model Lead {
-  id            String    @id @default(uuid())
+model document {
+  id           String   @id
+  userId       String
+  documentType String
+  fileUrl      String
+  fileName     String   @default("")
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  user         user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Document_userId_fkey")
+
+  @@index([userId], map: "Document_userId_fkey")
+}
+
+model lead {
+  id            String   @id
   propertyId    String
-  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenantId      String?
-  tenant        User?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   name          String
   email         String
   phone         String
-  message       String    @db.Text
-  status        String    @default("new") // "new", "contacted", "negotiating", "closed", "rejected"
-  assignedAgent String    @default("")
+  message       String   @db.Text
+  status        String   @default("new")
+  assignedAgent String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  property      property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Lead_propertyId_fkey")
+  user          user?    @relation(fields: [tenantId], references: [id], map: "Lead_tenantId_fkey")
+
+  @@index([propertyId], map: "Lead_propertyId_fkey")
+  @@index([tenantId], map: "Lead_tenantId_fkey")
+}
+
+model lease {
+  id                        String    @id
+  propertyId                String
+  tenantId                  String
+  ownerId                   String
+  startDate                 DateTime
+  endDate                   DateTime
+  durationMonths            Int       @default(11)
+  monthlyRent               Int
+  securityDeposit           Int
+  status                    String    @default("ACTIVE")
+  noticeDate                DateTime?
+  vacatingDate              DateTime?
+  noticeReason              String?   @db.Text
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime
+  user_lease_ownerIdTouser  user      @relation("lease_ownerIdTouser", fields: [ownerId], references: [id], onDelete: Cascade, map: "Lease_ownerId_fkey")
+  property                  property  @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Lease_propertyId_fkey")
+  user_lease_tenantIdTouser user      @relation("lease_tenantIdTouser", fields: [tenantId], references: [id], onDelete: Cascade, map: "Lease_tenantId_fkey")
+  payment                   payment[]
+
+  @@index([ownerId], map: "Lease_ownerId_fkey")
+  @@index([propertyId], map: "Lease_propertyId_fkey")
+  @@index([tenantId], map: "Lease_tenantId_fkey")
+}
+
+model payment {
+  id            String    @id
+  leaseId       String?
+  propertyId    String
+  userId        String
+  title         String    @default("Rent Payment")
+  amount        Int
+  type          String    @default("RENT")
+  status        String    @default("PENDING")
+  paymentMethod String    @default("UPI")
+  transactionId String?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  receiptNumber String?
+  notes         String?   @db.Text
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime
+  lease         lease?    @relation(fields: [leaseId], references: [id], map: "Payment_leaseId_fkey")
+  property      property  @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Payment_propertyId_fkey")
+  user          user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Payment_userId_fkey")
+
+  @@index([leaseId], map: "Payment_leaseId_fkey")
+  @@index([propertyId], map: "Payment_propertyId_fkey")
+  @@index([userId], map: "Payment_userId_fkey")
 }
 
-model Document {
-  id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documentType String   // "id_proof", "agreement", "property_papers"
-  fileUrl      String
-  fileName     String   @default("")
-  status       String   @default("pending") // "pending", "verified", "rejected"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model property {
+  id               String    @id
+  title            String
+  description      String    @db.Text
+  price            Int
+  location         String
+  propertyType     String
+  bhk              Int
+  images           String    @db.Text
+  ownerId          String
+  isAvailable      Boolean   @default(true)
+  listingOption    String    @default("rent")
+  latitude         Float     @default(18.5913)
+  longitude        Float     @default(73.7389)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime
+  availability     String    @default("Immediate")
+  availableFor     String    @default("Family")
+  carpetArea       Int       @default(800)
+  furnishingType   String    @default("Semi Furnished")
+  livingExperience String    @default("Managed by Owner")
+  lookingFor       String    @default("House")
+  parking          String    @default("Two Wheeler")
+  occupancyStatus  String    @default("available")
+  vacantFromDate   DateTime?
+  deal             deal[]
+  lead             lead[]
+  lease            lease[]
+  payment          payment[]
+  user             user      @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "Property_ownerId_fkey")
+  ticket           ticket[]
+
+  @@index([ownerId], map: "Property_ownerId_fkey")
 }
 
-model Ticket {
-  id          String   @id @default(uuid())
+model ticket {
+  id          String   @id
   tenantId    String
-  tenant      User     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   propertyId  String
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   title       String
   description String   @db.Text
-  status      String   @default("open") // "open", "in_progress", "resolved", "closed"
-  priority    String   @default("medium") // "low", "medium", "high"
+  status      String   @default("open")
+  priority    String   @default("medium")
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime
+  property    property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Ticket_propertyId_fkey")
+  user        user     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "Ticket_tenantId_fkey")
+
+  @@index([propertyId], map: "Ticket_propertyId_fkey")
+  @@index([tenantId], map: "Ticket_tenantId_fkey")
+}
+
+model user {
+  id                         String     @id
+  name                       String
+  email                      String     @unique(map: "User_email_key")
+  password                   String
+  phone                      String?
+  role                       String     @default("tenant")
+  createdAt                  DateTime   @default(now())
+  updatedAt                  DateTime
+  deal_deal_buyerIdTouser    deal[]     @relation("deal_buyerIdTouser")
+  deal_deal_sellerIdTouser   deal[]     @relation("deal_sellerIdTouser")
+  document                   document[]
+  lead                       lead[]
+  lease_lease_ownerIdTouser  lease[]    @relation("lease_ownerIdTouser")
+  lease_lease_tenantIdTouser lease[]    @relation("lease_tenantIdTouser")
+  payment                    payment[]
+  property                   property[]
+  ticket                     ticket[]
 }

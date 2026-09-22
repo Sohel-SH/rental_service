@@ -301,6 +301,85 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const payload = await verifyToken(token);
+    if (!payload || (payload.role !== 'owner' && payload.role !== 'admin')) {
+      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { propertyId, occupancyStatus, isAvailable, action } = body;
+
+    if (!propertyId) {
+      return NextResponse.json({ error: 'Property ID is required.' }, { status: 400 });
+    }
+
+    const property = await prisma.property.findUnique({ where: { id: propertyId } });
+    if (!property) {
+      return NextResponse.json({ error: 'Property not found.' }, { status: 404 });
+    }
+
+    if (payload.role === 'owner' && property.ownerId !== payload.id) {
+      return NextResponse.json({ error: 'Forbidden. You do not own this property.' }, { status: 403 });
+    }
+
+    let newStatus = occupancyStatus;
+    let newAvailable = isAvailable !== undefined ? isAvailable : true;
+    let vacantDate = null;
+
+    if (action === 'mark_moved_out' || occupancyStatus === 'available') {
+      newStatus = 'available';
+      newAvailable = true;
+      vacantDate = null;
+
+      // Conclude any active lease for this property
+      await prisma.lease.updateMany({
+        where: { propertyId, status: { in: ['ACTIVE', 'NOTICE_PERIOD'] } },
+        data: { status: 'COMPLETED' },
+      });
+    } else if (occupancyStatus === 'occupied') {
+      newStatus = 'occupied';
+      newAvailable = false;
+      vacantDate = null;
+    } else if (occupancyStatus === 'vacating_soon') {
+      newStatus = 'vacating_soon';
+      newAvailable = true;
+      vacantDate = body.vacantFromDate ? new Date(body.vacantFromDate) : null;
+    }
+
+    const updated = await prisma.property.update({
+      where: { id: propertyId },
+      data: {
+        occupancyStatus: newStatus,
+        isAvailable: newAvailable,
+        vacantFromDate: vacantDate,
+      },
+    });
+
+    return NextResponse.json({
+      message: 'Property occupancy status updated successfully.',
+      property: {
+        ...updated,
+        images: updated.images ? updated.images.split(',') : [],
+      },
+    });
+  } catch (error: any) {
+    console.error('Update property error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update property: ' + error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const cookieStore = await cookies();

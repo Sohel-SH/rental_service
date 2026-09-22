@@ -99,7 +99,7 @@ export default function ListPropertyPage() {
     maintenanceIncluded: true,
     availability: 'Immediate', // Immediate, Within 7 Days, Within 15 Days, More than 15 Days
     availableFor: 'Family', // Family, Boys, Girls, Anyone
-    livingExperience: 'Managed by Nestaway', // Managed by Nestaway, Managed by Owner, Select (Premium Furnished)
+    livingExperience: 'Managed by S.R Rentals', // Managed by S.R Rentals, Managed by Owner, Select (Premium Furnished)
     listingOption: 'rent',
 
     // Step 3: Furnishing & Amenities
@@ -905,8 +905,8 @@ Key Highlights & Amenities:
                         <div className="management-options-grid">
                           {[
                             {
-                              id: 'Managed by Nestaway',
-                              title: '⭐ Managed by S.R Rentals / Nestaway',
+                              id: 'Managed by S.R Rentals',
+                              title: '⭐ Managed by S.R Rentals',
                               desc: 'Guaranteed rent, full tenant management, inspection, maintenance & legal agreement support.',
                               badge: 'Most Popular'
                             },

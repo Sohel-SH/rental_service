@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import EnquiryForm from '@/components/EnquiryForm';
+import PropertyGallery from '@/components/PropertyGallery';
 import PropertyMapWrapper from '@/components/PropertyMapWrapper';
 
 export const dynamic = 'force-dynamic';
@@ -86,12 +87,6 @@ export default async function PropertyDetailPage({ params }: PageProps) {
     }).format(price);
   };
 
-  // Format owner phone for WhatsApp link (remove non-digits)
-  const ownerPhone = property.ownerId?.phone || '+91 98765 01234';
-  const cleanPhone = ownerPhone.replace(/\D/g, '');
-  const encodedText = encodeURIComponent(`Hi, I am interested in your property "${property.title}" listed for rent at ${formatPrice(property.price)}/month.`);
-  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
-
   // Default images fallback
   const getFallbackImage = (type: string) => {
     switch (type) {
@@ -137,10 +132,16 @@ export default async function PropertyDetailPage({ params }: PageProps) {
             <div className="badges-row">
               <span className={`property-badge type-badge ${property.propertyType}`}>{property.propertyType}</span>
               <span className="property-badge bhk-badge">{property.bhk} BHK</span>
-              {property.isAvailable ? (
-                <span className="badge badge-verified">Available</span>
+              {property.occupancyStatus === 'vacating_soon' ? (
+                <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#b45309', fontWeight: '700', padding: '0.25rem 0.65rem' }}>
+                  ⏳ Available {property.vacantFromDate ? `from ${new Date(property.vacantFromDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Soon'} (Vacating Soon - Pre-Book Now!)
+                </span>
+              ) : property.occupancyStatus === 'sold' ? (
+                <span className="badge badge-rejected" style={{ fontWeight: '700' }}>🔒 Sold Out</span>
+              ) : property.isAvailable ? (
+                <span className="badge badge-verified">Available Now</span>
               ) : (
-                <span className="badge badge-rejected">Rented Out</span>
+                <span className="badge badge-rejected">Currently Occupied</span>
               )}
             </div>
             <h1 className="detail-title">{property.title}</h1>
@@ -153,33 +154,22 @@ export default async function PropertyDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Images Grid */}
-        <div className="detail-images-grid">
-          <div className="main-image-box">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={images[0]} alt={property.title} className="detail-image-main" />
-          </div>
-          {images.length > 1 && (
-            <div className="side-images-box">
-              {images.slice(1, 3).map((img: string, idx: number) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={img} alt={`${property.title} photo ${idx + 2}`} className="detail-image-side" />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Content Split */}
+        {/* Main Content Split: Left (Gallery + Specs + Map) & Right Sticky Sidebar (Assisted Viewing + Enquiry Form) */}
         <div className="detail-content-split">
+          
+          {/* LEFT CONTENT COLUMN */}
           <div className="detail-info-side">
             
-            {/* Description */}
+            {/* 1. Property Photo Gallery without blank spaces */}
+            <PropertyGallery images={images} title={property.title} />
+
+            {/* 2. Description */}
             <div className="info-section">
               <h3>Description</h3>
               <p className="detail-description">{property.description}</p>
             </div>
 
-            {/* Features Info */}
+            {/* 3. Key Details Specs */}
             <div className="info-section">
               <h3>Key Details</h3>
               <div className="details-grid-specs">
@@ -205,16 +195,44 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                   </div>
                 </div>
                 <div className="spec-card">
-                  <span className="spec-icon">👤</span>
+                  <span className="spec-icon">🛡️</span>
                   <div>
-                    <span className="spec-title">Landlord</span>
-                    <span className="spec-val">{property.ownerId?.name || 'S.R Partner'}</span>
+                    <span className="spec-title">Verification</span>
+                    <span className="spec-val">S.R Verified Listing</span>
+                  </div>
+                </div>
+                <div className="spec-card">
+                  <span className="spec-icon">🛋️</span>
+                  <div>
+                    <span className="spec-title">Furnishing</span>
+                    <span className="spec-val">{property.furnishingType || 'Semi Furnished'}</span>
+                  </div>
+                </div>
+                <div className="spec-card">
+                  <span className="spec-icon">📐</span>
+                  <div>
+                    <span className="spec-title">Carpet Area</span>
+                    <span className="spec-val">{property.carpetArea ? `${property.carpetArea} sq.ft` : '1,200 sq.ft'}</span>
+                  </div>
+                </div>
+                <div className="spec-card">
+                  <span className="spec-icon">👥</span>
+                  <div>
+                    <span className="spec-title">Available For</span>
+                    <span className="spec-val">{property.availableFor || 'Family / Bachelors'}</span>
+                  </div>
+                </div>
+                <div className="spec-card">
+                  <span className="spec-icon">⚡</span>
+                  <div>
+                    <span className="spec-title">Move-in</span>
+                    <span className="spec-val">{property.availability || 'Immediate'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Map View */}
+            {/* 4. Location Map */}
             <div className="info-section">
               <h3>Location Map</h3>
               <div className="detail-map-box">
@@ -223,40 +241,32 @@ export default async function PropertyDetailPage({ params }: PageProps) {
             </div>
           </div>
 
+          {/* RIGHT STICKY SIDEBAR */}
           <div className="detail-actions-side">
             <div className="sticky-action-cards">
               
-              {/* WhatsApp Direct */}
-              <div className="card whatsapp-cta-card">
-                <div className="wa-card-header">
-                  <span className="wa-icon">💬</span>
+              {/* S.R Assisted Viewing Trust Card */}
+              <div className="card trust-guarantee-card" style={{ padding: '1.25rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '1.75rem' }}>🤝</span>
                   <div>
-                    <h4>Direct WhatsApp Enquiry</h4>
-                    <p>Connect with the owner directly on WhatsApp for a fast response.</p>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: '#166534', margin: 0 }}>S.R Assisted Viewing</h4>
+                    <p style={{ fontSize: '0.8rem', color: '#15803d', margin: '0.2rem 0 0 0' }}>Our dedicated property manager will coordinate with the owner and assist your free property visit.</p>
                   </div>
                 </div>
-                <a 
-                  href={whatsappUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="btn btn-primary whatsapp-btn-cta"
-                >
-                  Chat with Rajesh
-                </a>
               </div>
 
-              {/* Database Lead Form & WhatsApp Trigger */}
+              {/* Lead Capture & Tour Booking Form */}
               <EnquiryForm 
                 propertyId={property.id.toString()}
                 propertyTitle={property.title}
                 propertyPrice={property.price}
                 propertyLocation={property.location}
-                ownerName={property.ownerId?.name || 'Property Owner'}
-                ownerPhone={ownerPhone}
               />
 
             </div>
           </div>
+
         </div>
 
       </div>

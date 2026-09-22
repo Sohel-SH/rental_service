@@ -134,7 +134,7 @@ export default function SearchBar() {
     query.append('city', city);
     query.append('purchaseMode', purchaseMode);
     
-    // Map Nestaway categories to backend Property Types
+    // Map categories to backend Property Types
     if (subCategory === 'full_house') {
       query.append('propertyType', 'apartment'); // apartment / house
     } else if (subCategory === 'coliving') {
@@ -147,7 +147,7 @@ export default function SearchBar() {
   };
 
   return (
-    <div className="nestaway-search-container-exact">
+    <div className="sr-search-container-exact">
       
       {/* Top Filter Tabs Row */}
       <div className="search-top-filter-row">

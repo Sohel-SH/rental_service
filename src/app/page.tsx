@@ -79,14 +79,14 @@ export default async function HomePage() {
       )}
 
       {/* 1. Hero Banner */}
-      <section className="hero-section-nestaway">
-        <div className="hero-overlay-nestaway"></div>
-        <div className="container hero-container-nestaway">
-          <div className="hero-text-content-nestaway">
-            <h1 className="hero-title-nestaway">Discover a place you'll love</h1>
+      <section className="hero-section-sr">
+        <div className="hero-overlay-sr"></div>
+        <div className="container hero-container-sr">
+          <div className="hero-text-content-sr">
+            <h1 className="hero-title-sr">Discover a place you'll love</h1>
           </div>
 
-          <div className="hero-search-wrapper-nestaway">
+          <div className="hero-search-wrapper-sr">
             <SearchBar />
           </div>
 
@@ -167,7 +167,7 @@ export default async function HomePage() {
       {/* 3. Popular Localities Block */}
       <section className="popular-localities-section">
         <div className="container">
-          <h2 className="nestaway-section-header">Popular Localities</h2>
+          <h2 className="sr-section-header">Popular Localities</h2>
           <div className="localities-grid">
 
             <div className="locality-banner-card">
@@ -225,7 +225,7 @@ export default async function HomePage() {
       {/* 4. Recommended Properties */}
       <section className="recommended-section">
         <div className="container">
-          <h2 className="nestaway-section-header">Recommended Properties</h2>
+          <h2 className="sr-section-header">Recommended Properties</h2>
 
           <div className="recommended-scroll-grid">
             {recommendedProperties.length > 0 ? (
@@ -328,7 +328,7 @@ export default async function HomePage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop"
-              alt="Nestaway App"
+              alt="S.R Rentals App"
               className="phone-showcase-img"
             />
           </div>
@@ -336,7 +336,7 @@ export default async function HomePage() {
           {/* Right Mobile Download text */}
           <div className="chapter-right-text">
             <h2 className="chapter-title">Start a New Chapter</h2>
-            <h4 className="chapter-subtitle">Join the Nestaway community</h4>
+            <h4 className="chapter-subtitle">Join the S.R Rentals community</h4>
             <p className="chapter-desc">
               Your journey to hassle-free renting begins here. Find properties based on your choices, schedule visits, and complete rental verification all in one single app.
             </p>
@@ -410,7 +410,7 @@ export default async function HomePage() {
       {/* 9. Our Happy Customers (Testimonials) Block */}
       <section className="testimonials-section">
         <div className="container">
-          <h2 className="nestaway-section-header">Our Happy Customers</h2>
+          <h2 className="sr-section-header">Our Happy Customers</h2>
 
           <div className="testimonials-grid">
 

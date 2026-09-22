@@ -3,53 +3,53 @@ import bcrypt from 'bcryptjs';
 
 export async function seedDatabase() {
   try {
-    // 1. Check if we already have users
-    const userCount = await prisma.user.count();
-    if (userCount > 0) {
-      console.log('Database already has users. Skipping seeding.');
-      return;
-    }
+    // 1. Get or Create Demo Users
+    let adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
+    let ownerUser = await prisma.user.findFirst({ where: { role: 'owner' } });
+    let tenantUser = await prisma.user.findFirst({ where: { role: 'tenant' } });
 
-    console.log('No users found. Seeding database...');
-
-    // 2. Hash passwords
     const hashedPassword = await bcrypt.hash('password123', 10);
 
-    // 3. Create Demo Users
-    const adminUser = await prisma.user.create({
-      data: {
-        name: 'System Admin',
-        email: 'admin@srrentals.com',
-        password: hashedPassword,
-        phone: '9876543210',
-        role: 'admin',
-      },
-    });
+    if (!adminUser) {
+      adminUser = await prisma.user.create({
+        data: {
+          name: 'System Admin',
+          email: 'admin@srrentals.com',
+          password: hashedPassword,
+          phone: '9876543210',
+          role: 'admin',
+        },
+      });
+    }
 
-    const ownerUser = await prisma.user.create({
-      data: {
-        name: 'Rajesh Kumar (Owner)',
-        email: 'owner@srrentals.com',
-        password: hashedPassword,
-        phone: '9876543211',
-        role: 'owner',
-      },
-    });
+    if (!ownerUser) {
+      ownerUser = await prisma.user.create({
+        data: {
+          name: 'Rajesh Kumar (Owner)',
+          email: 'owner@srrentals.com',
+          password: hashedPassword,
+          phone: '9876543211',
+          role: 'owner',
+        },
+      });
+    }
 
-    const tenantUser = await prisma.user.create({
-      data: {
-        name: 'Sohel Sheikh',
-        email: 'sheikhsohel691@gmail.com',
-        password: hashedPassword,
-        phone: '9876543212',
-        role: 'tenant',
-      },
-    });
+    if (!tenantUser) {
+      tenantUser = await prisma.user.create({
+        data: {
+          name: 'Sohel Sheikh',
+          email: 'sheikhsohel691@gmail.com',
+          password: hashedPassword,
+          phone: '9876543212',
+          role: 'tenant',
+        },
+      });
+    }
 
-    console.log('Users seeded successfully.');
-
-    // 4. Create Demo Properties
-    // We need at least 6 properties for featured displays on the homepage.
+    // 2. Check if we already have properties
+    let createdProps = await prisma.property.findMany();
+    if (createdProps.length === 0) {
+      console.log('No properties found. Seeding demo properties...');
     const propertiesData = [
       {
         title: 'Premium 2 BHK Furnished Apartment near Hinjawadi Phase 1',
@@ -64,7 +64,7 @@ export async function seedDatabase() {
         listingOption: 'rent',
         latitude: 18.5913,
         longitude: 73.7389,
-        livingExperience: 'Managed by Nestaway',
+        livingExperience: 'Managed by S.R Rentals',
         lookingFor: 'House',
         availableFor: 'Boys',
         furnishingType: 'Fully Furnished',
@@ -148,7 +148,7 @@ export async function seedDatabase() {
         listingOption: 'rent',
         latitude: 18.5925,
         longitude: 73.7370,
-        livingExperience: 'Managed by Nestaway',
+        livingExperience: 'Managed by S.R Rentals',
         lookingFor: 'Room',
         availableFor: 'Girls',
         furnishingType: 'Fully Furnished',
@@ -200,13 +200,159 @@ export async function seedDatabase() {
       }
     ];
 
-    for (const prop of propertiesData) {
-      await prisma.property.create({
-        data: prop,
-      });
+      for (const prop of propertiesData) {
+        const created = await prisma.property.create({
+          data: prop,
+        });
+        createdProps.push(created);
+      }
+
+      console.log('Seeded properties successfully.');
     }
 
-    console.log('Seeded properties successfully.');
+    // 3. Seed Demo Leases & Vacancies if none exist
+    const leaseCount = await prisma.lease.count();
+    if (leaseCount === 0 && createdProps.length >= 2) {
+      const activeProp = createdProps[0];
+      const vacatingProp = createdProps[1];
+
+      // Active Lease for Demo Tenant
+      const lease1 = await prisma.lease.create({
+        data: {
+          propertyId: activeProp.id,
+          tenantId: tenantUser.id,
+          ownerId: ownerUser.id,
+          startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 2 months ago
+          endDate: new Date(Date.now() + 270 * 24 * 60 * 60 * 1000), // 9 months remaining
+          durationMonths: 11,
+          monthlyRent: 22000,
+          securityDeposit: 44000,
+          status: 'ACTIVE',
+        },
+      });
+
+      // Update property 1 occupancy
+      await prisma.property.update({
+        where: { id: activeProp.id },
+        data: { occupancyStatus: 'occupied', isAvailable: false },
+      });
+
+      // Vacating Soon Property (Notice Submitted)
+      const vacatingDate = new Date(Date.now() + 12 * 24 * 60 * 60 * 1000); // 12 days from now
+      await prisma.lease.create({
+        data: {
+          propertyId: vacatingProp.id,
+          tenantId: tenantUser.id,
+          ownerId: ownerUser.id,
+          startDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000),
+          endDate: vacatingDate,
+          durationMonths: 6,
+          monthlyRent: 8500,
+          securityDeposit: 17000,
+          status: 'NOTICE_PERIOD',
+          noticeDate: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000),
+          vacatingDate: vacatingDate,
+          noticeReason: 'Relocating to another city for work assignment.',
+        },
+      });
+
+      // Update property 2 occupancy to vacating_soon for pre-booking
+      await prisma.property.update({
+        where: { id: vacatingProp.id },
+        data: {
+          occupancyStatus: 'vacating_soon',
+          isAvailable: true,
+          vacantFromDate: vacatingDate,
+        },
+      });
+
+      // 6. Seed Demo Payments
+      await prisma.payment.createMany({
+        data: [
+          {
+            leaseId: lease1.id,
+            propertyId: activeProp.id,
+            userId: tenantUser.id,
+            title: 'Security Deposit (Escrow)',
+            amount: 44000,
+            type: 'SECURITY_DEPOSIT',
+            status: 'PAID',
+            paymentMethod: 'Bank Transfer',
+            transactionId: 'TXN-DEP-884920',
+            receiptNumber: 'RCP-DEP-001',
+            paidAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+          },
+          {
+            leaseId: lease1.id,
+            propertyId: activeProp.id,
+            userId: tenantUser.id,
+            title: 'Monthly Rent - Last Month',
+            amount: 22000,
+            type: 'RENT',
+            status: 'PAID',
+            paymentMethod: 'UPI',
+            transactionId: 'TXN-UPI-992144',
+            receiptNumber: 'RCP-RENT-002',
+            paidAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+          {
+            leaseId: lease1.id,
+            propertyId: activeProp.id,
+            userId: tenantUser.id,
+            title: 'Monthly Rent - Current Month',
+            amount: 22000,
+            type: 'RENT',
+            status: 'PENDING',
+            paymentMethod: 'UPI',
+            dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+          },
+          {
+            propertyId: activeProp.id,
+            userId: tenantUser.id,
+            title: 'S.R Rentals Facilitation & Brokerage Fee',
+            amount: 11000,
+            type: 'BROKERAGE',
+            status: 'PAID',
+            paymentMethod: 'UPI',
+            transactionId: 'TXN-COMM-773121',
+            receiptNumber: 'RCP-COMM-003',
+            paidAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+          },
+        ],
+      });
+
+      // 7. Seed Demo Closed Deals (Sale & Rental Record)
+      await prisma.deal.createMany({
+        data: [
+          {
+            propertyId: createdProps[2].id, // 3 BHK Villa
+            buyerId: tenantUser.id,
+            sellerId: ownerUser.id,
+            dealType: 'SALE',
+            finalPrice: 8500000, // 85 Lakhs
+            tokenPaid: 500000,
+            brokerageFee: 85000,
+            closingDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+            status: 'COMPLETED',
+            notes: 'Registry completed at Sub-Registrar Office, Hinjawadi. Full payment transferred.',
+          },
+          {
+            propertyId: activeProp.id,
+            buyerId: tenantUser.id,
+            sellerId: ownerUser.id,
+            dealType: 'RENTAL_LEASE',
+            finalPrice: 22000,
+            tokenPaid: 22000,
+            brokerageFee: 11000,
+            closingDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+            status: 'COMPLETED',
+            notes: '11-Month registered agreement executed.',
+          },
+        ],
+      });
+
+      console.log('Seeded Leases, Payments, and Deals successfully.');
+    }
   } catch (error) {
     console.error('Error during database seeding:', error);
     throw error;

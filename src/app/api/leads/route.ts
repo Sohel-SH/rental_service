@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
+import { sendLeadNotificationToAdmin } from '@/lib/notifications';
 
 // Helper to format lead objects for frontend Mongoose compatibility
 function formatLead(lead: any) {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     let rawLeads: any[] = [];
 
     if (payload.role === 'admin') {
-      // Admins see all leads
+      // Admins see all leads with both Property and Owner contact details
       rawLeads = await prisma.lead.findMany({
         include: {
           property: {
@@ -45,6 +46,15 @@ export async function GET(request: Request) {
               price: true,
               location: true,
               images: true,
+              ownerId: true,
+              owner: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -107,18 +117,42 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { propertyId, name, email, phone, message } = body;
+    let { propertyId, name, email, phone, message } = body;
 
-    if (!propertyId || !name || !email || !phone || !message) {
+    if (!name || !email || !phone || !message) {
       return NextResponse.json(
         { error: 'Missing required field details for lead submission.' },
         { status: 400 }
       );
     }
 
-    // Verify property exists
+    // If propertyId not supplied (e.g. general contact enquiry), find default property
+    if (!propertyId) {
+      const defaultProp = await prisma.property.findFirst();
+      if (defaultProp) {
+        propertyId = defaultProp.id;
+      }
+    }
+
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'No active property found to associate enquiry with.' },
+        { status: 400 }
+      );
+    }
+
+    // Verify property exists and fetch owner details for admin alert
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
+      include: {
+        owner: {
+          select: {
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+      },
     });
     if (!property) {
       return NextResponse.json({ error: 'Property not found.' }, { status: 404 });
@@ -149,8 +183,53 @@ export async function POST(request: Request) {
       },
     });
 
+    // Build Admin WhatsApp Notification payload
+    const adminPhone = process.env.ADMIN_WHATSAPP_PHONE || '917218661327';
+    const cleanAdminPhone = adminPhone.replace(/\D/g, '');
+
+    const adminNotificationText =
+      `🚨 *NEW PROPERTY LEAD ALERT - S.R RENTALS*\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `🏠 *Property:* ${property.title}\n` +
+      `💰 *Rent:* ₹${property.price.toLocaleString('en-IN')}/month\n` +
+      `📍 *Location:* ${property.location}\n\n` +
+      `👤 *Interested Client:* ${name.trim()}\n` +
+      `📞 *Client Phone:* ${phone.trim()}\n` +
+      `✉️ *Client Email:* ${email.trim()}\n` +
+      `📝 *Note:* "${message.trim()}"\n\n` +
+      `👤 *Property Owner:* ${property.owner?.name || 'Registered Landlord'}\n` +
+      `📞 *Owner Phone:* ${property.owner?.phone || 'Not provided'}\n` +
+      `🕒 *Timestamp:* ${new Date().toLocaleString('en-IN')}\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `_S.R Rental Services Instant Lead Notification_`;
+
+    const adminWhatsAppUrl = `https://wa.me/${cleanAdminPhone}?text=${encodeURIComponent(adminNotificationText)}`;
+
+    // Dispatch background real-time phone notification (Telegram, Webhook, CallMeBot)
+    sendLeadNotificationToAdmin({
+      leadId: newLead.id,
+      clientName: name,
+      clientPhone: phone,
+      clientEmail: email,
+      propertyTitle: property.title,
+      propertyPrice: property.price,
+      propertyLocation: property.location,
+      ownerName: property.owner?.name,
+      ownerPhone: property.owner?.phone || undefined,
+      message,
+    }).catch((err: any) => {
+      console.error('Async phone notification error:', err);
+    });
+
+    console.log(`[Lead Notification] New lead #${newLead.id} generated for property "${property.title}" by client ${name} (${phone})`);
+
     return NextResponse.json(
-      { message: 'Enquiry submitted successfully.', lead: { ...newLead, _id: newLead.id } },
+      {
+        message: 'Enquiry submitted successfully.',
+        lead: { ...newLead, _id: newLead.id },
+        adminWhatsAppUrl,
+        adminNotificationText,
+      },
       { status: 201 }
     );
   } catch (error: any) {
@@ -181,7 +260,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { leadId, status } = body;
+    const { leadId, status, assignedAgent } = body;
 
     if (!leadId || !status) {
       return NextResponse.json(
@@ -208,9 +287,14 @@ export async function PUT(request: Request) {
       }
     }
 
+    const updateData: any = { status };
+    if (assignedAgent !== undefined) {
+      updateData.assignedAgent = assignedAgent;
+    }
+
     const updatedLead = await prisma.lead.update({
       where: { id: leadId },
-      data: { status },
+      data: updateData,
     });
 
     return NextResponse.json({

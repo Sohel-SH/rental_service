@@ -21,6 +21,8 @@ interface PropertyProps {
     carpetArea?: number;
     parking?: string;
     availability?: string;
+    occupancyStatus?: string;
+    vacantFromDate?: string | Date;
   };
   variant?: 'vertical' | 'horizontal';
 }
@@ -72,8 +74,8 @@ export default function PropertyCard({ property, variant = 'vertical' }: Propert
     setCurrentIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  // Badges & Labels matching reference
-  const topBadgeText = property.livingExperience || (isBuy ? 'Managed by Owner' : 'Managed by Nestaway');
+  // Badges & Labels
+  const topBadgeText = property.livingExperience || (isBuy ? 'Managed by Owner' : 'Managed by S.R Rentals');
 
   const features = property.propertyType === 'pg'
     ? ['Single/Shared', 'Wi-Fi Included', 'Bachelors']
@@ -90,7 +92,7 @@ export default function PropertyCard({ property, variant = 'vertical' }: Propert
     const subtitleText = `${property.title.split(',')[0]} Apartment`;
 
     return (
-      <div className="nestaway-property-card-horizontal">
+      <div className="sr-property-card-horizontal">
         <div className="card-image-box-horizontal">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img 
@@ -131,8 +133,45 @@ export default function PropertyCard({ property, variant = 'vertical' }: Propert
             </>
           )}
 
-          {/* Top Floating Badge matching exact Nestaway mockup */}
+          {/* Top Floating Badge */}
           <span className="card-top-badge-exact">{topBadgeText}</span>
+
+          {/* Occupancy / Vacancy Timeline Badge */}
+          {property.occupancyStatus === 'vacating_soon' && (
+            <span style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '8px',
+              backgroundColor: 'rgba(217, 119, 6, 0.95)',
+              color: '#ffffff',
+              fontSize: '0.725rem',
+              fontWeight: '700',
+              padding: '0.25rem 0.65rem',
+              borderRadius: '6px',
+              backdropFilter: 'blur(4px)',
+              zIndex: 3,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            }}>
+              ⏳ Available {property.vacantFromDate ? `from ${new Date(property.vacantFromDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}` : 'Soon'} (Pre-Book)
+            </span>
+          )}
+          {property.occupancyStatus === 'sold' && (
+            <span style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '8px',
+              backgroundColor: 'rgba(220, 38, 38, 0.95)',
+              color: '#ffffff',
+              fontSize: '0.725rem',
+              fontWeight: '700',
+              padding: '0.25rem 0.65rem',
+              borderRadius: '6px',
+              backdropFilter: 'blur(4px)',
+              zIndex: 3,
+            }}>
+              🔒 SOLD OUT
+            </span>
+          )}
         </div>
 
         <div className="card-body-box-horizontal-exact">
@@ -196,7 +235,7 @@ export default function PropertyCard({ property, variant = 'vertical' }: Propert
 
   // Default Vertical Card layout
   return (
-    <div className="nestaway-property-card">
+    <div className="sr-property-card">
       <div className="card-image-box">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
@@ -239,6 +278,43 @@ export default function PropertyCard({ property, variant = 'vertical' }: Propert
 
         {/* Top Floating Badge */}
         <span className="card-top-badge">{topBadgeText}</span>
+
+        {/* Occupancy / Vacancy Timeline Badge */}
+        {property.occupancyStatus === 'vacating_soon' && (
+          <span style={{
+            position: 'absolute',
+            bottom: '8px',
+            left: '8px',
+            backgroundColor: 'rgba(217, 119, 6, 0.95)',
+            color: '#ffffff',
+            fontSize: '0.725rem',
+            fontWeight: '700',
+            padding: '0.25rem 0.65rem',
+            borderRadius: '6px',
+            backdropFilter: 'blur(4px)',
+            zIndex: 3,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}>
+            ⏳ Available {property.vacantFromDate ? `from ${new Date(property.vacantFromDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}` : 'Soon'} (Pre-Book)
+          </span>
+        )}
+        {property.occupancyStatus === 'sold' && (
+          <span style={{
+            position: 'absolute',
+            bottom: '8px',
+            left: '8px',
+            backgroundColor: 'rgba(220, 38, 38, 0.95)',
+            color: '#ffffff',
+            fontSize: '0.725rem',
+            fontWeight: '700',
+            padding: '0.25rem 0.65rem',
+            borderRadius: '6px',
+            backdropFilter: 'blur(4px)',
+            zIndex: 3,
+          }}>
+            🔒 SOLD OUT
+          </span>
+        )}
 
         {/* Share & Heart Action Buttons */}
         <div className="card-top-actions">

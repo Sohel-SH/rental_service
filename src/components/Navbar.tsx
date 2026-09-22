@@ -208,7 +208,7 @@ export default function Navbar() {
       <header className="navbar-header-exact">
         <div className="navbar-container-exact">
 
-          {/* Nestaway Stylized Logo */}
+          {/* S.R Rentals Stylized Logo */}
           <Link href="/" className="navbar-logo">
             <span>S.R</span> Rental Services
           </Link>
@@ -356,7 +356,7 @@ export default function Navbar() {
                   Tenancy policies
                 </Link>
                 <Link href="/contact" onClick={closeSidebar} className="sidebar-link-item">
-                  Nestaway terms
+                  S.R Rentals terms
                 </Link>
                 <Link href="/contact" onClick={closeSidebar} className="sidebar-link-item">
                   Privacy policy
@@ -496,7 +496,7 @@ export default function Navbar() {
               {/* REGISTER MODE FORM */}
               {authMode === 'register' && (
                 <div className="auth-form-wrapper-exact">
-                  <h3 className="auth-title-exact">Register and find your nest with ease!</h3>
+                  <h3 className="auth-title-exact">Register and find your dream home with ease!</h3>
 
                   <form onSubmit={handleRegisterSubmit} className="auth-fields-form">
 
@@ -563,7 +563,7 @@ export default function Navbar() {
                         <span className="checkbox-checkmark-exact"></span>
                       </label>
                       <p className="consent-text-exact">
-                        By Proceeding, You Consent To NestAway Technologies Using Your Provided Data To Process Your Property Inquiries, Facilitate Bookings Or Listings, And For Future Correspondence. You Can Review Our Full <Link href="/contact" className="consent-link">Privacy Policy</Link> .
+                        By Proceeding, You Consent To S.R Rentals Using Your Provided Data To Process Your Property Inquiries, Facilitate Bookings Or Listings, And For Future Correspondence. You Can Review Our Full <Link href="/contact" className="consent-link">Privacy Policy</Link> .
                       </p>
                     </div>
 
