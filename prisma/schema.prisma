@@ -7,22 +7,23 @@ datasource db {
 }
 
 model deal {
-  id                       String   @id
-  propertyId               String
-  buyerId                  String
-  sellerId                 String
-  dealType                 String   @default("RENTAL_LEASE")
-  finalPrice               Int
-  tokenPaid                Int      @default(0)
-  brokerageFee             Int      @default(0)
-  closingDate              DateTime @default(now())
-  status                   String   @default("COMPLETED")
-  notes                    String?  @db.Text
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime
-  user_deal_buyerIdTouser  user     @relation("deal_buyerIdTouser", fields: [buyerId], references: [id], onDelete: Cascade, map: "Deal_buyerId_fkey")
-  property                 property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Deal_propertyId_fkey")
-  user_deal_sellerIdTouser user     @relation("deal_sellerIdTouser", fields: [sellerId], references: [id], onDelete: Cascade, map: "Deal_sellerId_fkey")
+  id           String   @id @default(uuid())
+  propertyId   String
+  buyerId      String
+  sellerId     String
+  dealType     String   @default("RENTAL_LEASE")
+  finalPrice   Int
+  tokenPaid    Int      @default(0)
+  brokerageFee Int      @default(0)
+  closingDate  DateTime @default(now())
+  status       String   @default("COMPLETED")
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  buyer    user     @relation("deal_buyerIdTouser", fields: [buyerId], references: [id], onDelete: Cascade, map: "Deal_buyerId_fkey")
+  property property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Deal_propertyId_fkey")
+  seller   user     @relation("deal_sellerIdTouser", fields: [sellerId], references: [id], onDelete: Cascade, map: "Deal_sellerId_fkey")
 
   @@index([buyerId], map: "Deal_buyerId_fkey")
   @@index([propertyId], map: "Deal_propertyId_fkey")
@@ -30,21 +31,22 @@ model deal {
 }
 
 model document {
-  id           String   @id
+  id           String   @id @default(uuid())
   userId       String
   documentType String
   fileUrl      String
   fileName     String   @default("")
   status       String   @default("pending")
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
-  user         user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Document_userId_fkey")
+  updatedAt    DateTime @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Document_userId_fkey")
 
   @@index([userId], map: "Document_userId_fkey")
 }
 
 model lead {
-  id            String   @id
+  id            String   @id @default(uuid())
   propertyId    String
   tenantId      String?
   name          String
@@ -54,34 +56,36 @@ model lead {
   status        String   @default("new")
   assignedAgent String   @default("")
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
-  property      property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Lead_propertyId_fkey")
-  user          user?    @relation(fields: [tenantId], references: [id], map: "Lead_tenantId_fkey")
+  updatedAt     DateTime @updatedAt
+
+  property property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Lead_propertyId_fkey")
+  user     user?    @relation(fields: [tenantId], references: [id], map: "Lead_tenantId_fkey")
 
   @@index([propertyId], map: "Lead_propertyId_fkey")
   @@index([tenantId], map: "Lead_tenantId_fkey")
 }
 
 model lease {
-  id                        String    @id
-  propertyId                String
-  tenantId                  String
-  ownerId                   String
-  startDate                 DateTime
-  endDate                   DateTime
-  durationMonths            Int       @default(11)
-  monthlyRent               Int
-  securityDeposit           Int
-  status                    String    @default("ACTIVE")
-  noticeDate                DateTime?
-  vacatingDate              DateTime?
-  noticeReason              String?   @db.Text
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime
-  user_lease_ownerIdTouser  user      @relation("lease_ownerIdTouser", fields: [ownerId], references: [id], onDelete: Cascade, map: "Lease_ownerId_fkey")
-  property                  property  @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Lease_propertyId_fkey")
-  user_lease_tenantIdTouser user      @relation("lease_tenantIdTouser", fields: [tenantId], references: [id], onDelete: Cascade, map: "Lease_tenantId_fkey")
-  payment                   payment[]
+  id              String    @id @default(uuid())
+  propertyId      String
+  tenantId        String
+  ownerId         String
+  startDate       DateTime
+  endDate         DateTime
+  durationMonths  Int       @default(11)
+  monthlyRent     Int
+  securityDeposit Int
+  status          String    @default("ACTIVE")
+  noticeDate      DateTime?
+  vacatingDate    DateTime?
+  noticeReason    String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  owner    user      @relation("lease_ownerIdTouser", fields: [ownerId], references: [id], onDelete: Cascade, map: "Lease_ownerId_fkey")
+  property property  @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Lease_propertyId_fkey")
+  tenant   user      @relation("lease_tenantIdTouser", fields: [tenantId], references: [id], onDelete: Cascade, map: "Lease_tenantId_fkey")
+  payment  payment[]
 
   @@index([ownerId], map: "Lease_ownerId_fkey")
   @@index([propertyId], map: "Lease_propertyId_fkey")
@@ -89,7 +93,7 @@ model lease {
 }
 
 model payment {
-  id            String    @id
+  id            String    @id @default(uuid())
   leaseId       String?
   propertyId    String
   userId        String
@@ -104,10 +108,11 @@ model payment {
   receiptNumber String?
   notes         String?   @db.Text
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
-  lease         lease?    @relation(fields: [leaseId], references: [id], map: "Payment_leaseId_fkey")
-  property      property  @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Payment_propertyId_fkey")
-  user          user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Payment_userId_fkey")
+  updatedAt     DateTime  @updatedAt
+
+  lease    lease?   @relation(fields: [leaseId], references: [id], map: "Payment_leaseId_fkey")
+  property property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Payment_propertyId_fkey")
+  user     user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Payment_userId_fkey")
 
   @@index([leaseId], map: "Payment_leaseId_fkey")
   @@index([propertyId], map: "Payment_propertyId_fkey")
@@ -115,7 +120,7 @@ model payment {
 }
 
 model property {
-  id               String    @id
+  id               String    @id @default(uuid())
   title            String
   description      String    @db.Text
   price            Int
@@ -129,7 +134,7 @@ model property {
   latitude         Float     @default(18.5913)
   longitude        Float     @default(73.7389)
   createdAt        DateTime  @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime  @updatedAt
   availability     String    @default("Immediate")
   availableFor     String    @default("Family")
   carpetArea       Int       @default(800)
@@ -139,18 +144,19 @@ model property {
   parking          String    @default("Two Wheeler")
   occupancyStatus  String    @default("available")
   vacantFromDate   DateTime?
-  deal             deal[]
-  lead             lead[]
-  lease            lease[]
-  payment          payment[]
-  user             user      @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "Property_ownerId_fkey")
-  ticket           ticket[]
+
+  deal    deal[]
+  lead    lead[]
+  lease   lease[]
+  payment payment[]
+  owner   user      @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "Property_ownerId_fkey")
+  ticket  ticket[]
 
   @@index([ownerId], map: "Property_ownerId_fkey")
 }
 
 model ticket {
-  id          String   @id
+  id          String   @id @default(uuid())
   tenantId    String
   propertyId  String
   title       String
@@ -158,23 +164,25 @@ model ticket {
   status      String   @default("open")
   priority    String   @default("medium")
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
-  property    property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Ticket_propertyId_fkey")
-  user        user     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "Ticket_tenantId_fkey")
+  updatedAt   DateTime @updatedAt
+
+  property property @relation(fields: [propertyId], references: [id], onDelete: Cascade, map: "Ticket_propertyId_fkey")
+  tenant   user     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "Ticket_tenantId_fkey")
 
   @@index([propertyId], map: "Ticket_propertyId_fkey")
   @@index([tenantId], map: "Ticket_tenantId_fkey")
 }
 
 model user {
-  id                         String     @id
-  name                       String
-  email                      String     @unique(map: "User_email_key")
-  password                   String
-  phone                      String?
-  role                       String     @default("tenant")
-  createdAt                  DateTime   @default(now())
-  updatedAt                  DateTime
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique(map: "User_email_key")
+  password  String
+  phone     String?
+  role      String   @default("tenant")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   deal_deal_buyerIdTouser    deal[]     @relation("deal_buyerIdTouser")
   deal_deal_sellerIdTouser   deal[]     @relation("deal_sellerIdTouser")
   document                   document[]

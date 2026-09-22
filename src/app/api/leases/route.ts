@@ -54,7 +54,7 @@ export async function GET(request: Request) {
           owner: {
             select: { id: true, name: true, email: true, phone: true },
           },
-          payments: true,
+          payment: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
           tenant: {
             select: { id: true, name: true, email: true, phone: true },
           },
-          payments: true,
+          payment: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -78,7 +78,7 @@ export async function GET(request: Request) {
           owner: {
             select: { id: true, name: true, email: true, phone: true },
           },
-          payments: true,
+          payment: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -276,7 +276,7 @@ export async function PUT(request: Request) {
 
     if (action === 'submit_notice') {
       const vDate = vacatingDate ? new Date(vacatingDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      
+
       const updatedLease = await prisma.lease.update({
         where: { id: leaseId },
         data: {
