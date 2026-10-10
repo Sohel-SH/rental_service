@@ -404,7 +404,8 @@ Key Highlights & Amenities:
         throw new Error(data.error || 'Failed to publish property listing.');
       }
 
-      setSuccessMessage('🎉 Congratulations! Your property listing has been successfully published!');
+      const targetDashboard = user?.role === 'admin' ? '/admin' : '/owner';
+      setSuccessMessage(`🎉 Congratulations! Your property listing has been successfully published! Redirecting to ${user?.role === 'admin' ? 'Admin' : 'Landlord'} Dashboard...`);
       setPublishedPropertyId(data.property?.id || null);
 
       // Refresh session if guest user logged in
@@ -415,6 +416,11 @@ Key Highlights & Amenities:
           if (sessionData.user) login(sessionData.user);
         }
       }
+
+      // Auto-redirect back to dashboard after 2 seconds
+      setTimeout(() => {
+        router.push(targetDashboard);
+      }, 2000);
     } catch (err: any) {
       console.error('Property creation error:', err);
       setErrorMessage(err.message || 'An error occurred while submitting your listing.');
@@ -503,6 +509,8 @@ Key Highlights & Amenities:
                 <h2 className="success-title">Property Listed Successfully!</h2>
                 <p className="success-desc">
                   Your property is now live on S.R Rental Services and visible to thousands of verified prospective tenants.
+                  <br />
+                  <strong style={{ color: '#2563eb' }}>Redirecting you to dashboard...</strong>
                 </p>
                 
                 <div className="success-action-buttons">
@@ -511,8 +519,8 @@ Key Highlights & Amenities:
                       👁️ View Public Listing
                     </Link>
                   )}
-                  <Link href="/owner" className="btn btn-secondary">
-                    📊 Go to Landlord Dashboard
+                  <Link href={user?.role === 'admin' ? '/admin' : '/owner'} className="btn btn-secondary">
+                    📊 Return to Dashboard
                   </Link>
                   <button 
                     onClick={() => {

@@ -7,7 +7,16 @@ import { signToken, verifyToken } from '@/lib/jwt';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    let authPayload: any = null;
+    if (token) {
+      try {
+        authPayload = await verifyToken(token);
+      } catch (e) {}
+    }
 
+    const scope = searchParams.get('scope'); // 'owner' | 'admin' | 'all' | undefined
     const location = searchParams.get('location');
     const city = searchParams.get('city');
     const propertyType = searchParams.get('propertyType');
@@ -27,14 +36,40 @@ export async function GET(request: Request) {
     const parking = searchParams.get('parking');
     const availability = searchParams.get('availability');
 
+    // Check if this is an owner dashboard query or admin dashboard query
+    const isOwnerScope = scope === 'owner' || (authPayload?.role === 'owner' && !location && !propertyType && !bhk && !maxPrice && !city);
+    const isAdminScope = scope === 'admin' || (authPayload?.role === 'admin' && !location && !propertyType && !bhk && !maxPrice && !city);
+
     // Build query filter
-    const filter: any = { isAvailable: true };
+    const filter: any = {};
+
+    if (isOwnerScope && authPayload?.id) {
+      // Landlord sees ALL their properties (occupied, available, vacating)
+      filter.ownerId = authPayload.id;
+    } else if (isAdminScope) {
+      // Admin sees ALL properties across the platform
+    } else {
+      // Public visitors only see available properties or vacating soon properties for pre-booking
+      filter.OR = [
+        { isAvailable: true },
+        { occupancyStatus: 'vacating_soon' }
+      ];
+    }
 
     if (location) {
-      filter.OR = [
+      const locFilter = [
         { location: { contains: location } },
         { title: { contains: location } }
       ];
+      if (filter.OR) {
+        filter.AND = [
+          { OR: filter.OR },
+          { OR: locFilter }
+        ];
+        delete filter.OR;
+      } else {
+        filter.OR = locFilter;
+      }
     }
     
     if (city && city !== 'all' && city !== '') {
@@ -138,6 +173,11 @@ export async function GET(request: Request) {
 
     const rawProperties = await prisma.property.findMany({
       where: filter,
+      include: {
+        owner: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
       orderBy: orderBy,
     });
 

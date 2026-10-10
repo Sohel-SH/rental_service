@@ -30,6 +30,9 @@ export async function POST(request: Request) {
     // Hash default password
     const hashedPassword = await bcrypt.hash('password123', 10);
 
+    // Validate role for self-registration (only 'owner' or 'tenant' allowed)
+    const assignedRole = role === 'owner' ? 'owner' : 'tenant';
+
     // Create new user
     const user = await prisma.user.create({
       data: {
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
         email,
         phone,
         password: hashedPassword,
-        role: role || 'tenant',
+        role: assignedRole,
       },
     });
 

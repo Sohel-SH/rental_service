@@ -35,8 +35,8 @@ export async function GET(request: Request) {
 
     let rawLeads: any[] = [];
 
-    if (payload.role === 'admin') {
-      // Admins see all leads with both Property and Owner contact details
+    if (payload.role === 'admin' || payload.role === 'telecaller') {
+      // Admins and Telecallers see all leads with both Property and Owner contact details
       rawLeads = await prisma.lead.findMany({
         include: {
           property: {
@@ -252,9 +252,9 @@ export async function PUT(request: Request) {
     }
 
     const payload = await verifyToken(token);
-    if (!payload || (payload.role !== 'owner' && payload.role !== 'admin')) {
+    if (!payload || (payload.role !== 'owner' && payload.role !== 'admin' && payload.role !== 'telecaller')) {
       return NextResponse.json(
-        { error: 'Forbidden. Landlords and Admins only.' },
+        { error: 'Forbidden. Landlords, Telecallers and Admins only.' },
         { status: 403 }
       );
     }

@@ -7,7 +7,7 @@ interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'tenant' | 'owner' | 'admin';
+  role: 'tenant' | 'owner' | 'admin' | 'telecaller' | string;
 }
 
 interface AuthContextType {
@@ -51,13 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
-      if (res.ok) {
-        setUser(null);
-        window.location.href = '/';
-      }
+      await fetch('/api/auth/logout', { method: 'POST' });
     } catch (err) {
       console.error('Logout failed:', err);
+    } finally {
+      setUser(null);
+      window.location.replace('/');
     }
   };
 

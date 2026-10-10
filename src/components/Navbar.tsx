@@ -24,6 +24,7 @@ export default function Navbar() {
   const [regLastName, setRegLastName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
+  const [regRole, setRegRole] = useState<'tenant' | 'owner'>('tenant');
   const [regConsent, setRegConsent] = useState(false);
 
   // Common UI states
@@ -57,6 +58,7 @@ export default function Navbar() {
     setRegLastName('');
     setRegPhone('');
     setRegEmail('');
+    setRegRole('tenant');
     setRegConsent(false);
     setError('');
     setSuccess('');
@@ -147,7 +149,7 @@ export default function Navbar() {
           name: fullName,
           email: regEmail,
           phone: regPhone,
-          role: 'tenant'
+          role: regRole,
         }),
       });
 
@@ -160,8 +162,14 @@ export default function Navbar() {
       login(data.user);
       setTimeout(() => {
         closeAuthModal();
-        router.refresh();
-      }, 1000);
+        if (data.user?.role === 'owner') {
+          router.push('/owner');
+        } else if (data.user?.role === 'tenant') {
+          router.push('/tenant');
+        } else {
+          router.refresh();
+        }
+      }, 900);
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -496,9 +504,62 @@ export default function Navbar() {
               {/* REGISTER MODE FORM */}
               {authMode === 'register' && (
                 <div className="auth-form-wrapper-exact">
-                  <h3 className="auth-title-exact">Register and find your dream home with ease!</h3>
+                  <h3 className="auth-title-exact">
+                    {regRole === 'owner'
+                      ? 'Register as Landlord & list properties!'
+                      : 'Register and find your dream home with ease!'}
+                  </h3>
 
                   <form onSubmit={handleRegisterSubmit} className="auth-fields-form">
+
+                    {/* Role Selection (Tenant vs Property Owner) */}
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.3rem' }}>
+                        Register As:
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setRegRole('tenant')}
+                          style={{
+                            padding: '0.5rem 0.4rem',
+                            border: regRole === 'tenant' ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                            backgroundColor: regRole === 'tenant' ? '#eff6ff' : '#f8fafc',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '0.15rem',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span style={{ fontSize: '1.1rem' }}>🏠</span>
+                          <strong style={{ fontSize: '0.775rem', color: regRole === 'tenant' ? '#1d4ed8' : '#334155' }}>Tenant / Hunter</strong>
+                          <span style={{ fontSize: '0.65rem', color: '#64748b' }}>Rent flats & rooms</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegRole('owner')}
+                          style={{
+                            padding: '0.5rem 0.4rem',
+                            border: regRole === 'owner' ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                            backgroundColor: regRole === 'owner' ? '#eff6ff' : '#f8fafc',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '0.15rem',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span style={{ fontSize: '1.1rem' }}>🏢</span>
+                          <strong style={{ fontSize: '0.775rem', color: regRole === 'owner' ? '#1d4ed8' : '#334155' }}>Property Owner</strong>
+                          <span style={{ fontSize: '0.65rem', color: '#64748b' }}>List & manage rentals</span>
+                        </button>
+                      </div>
+                    </div>
 
                     <div className="auth-flex-row-exact">
                       <div className="form-group-exact flex-1">

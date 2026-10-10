@@ -276,6 +276,7 @@ export async function PUT(request: Request) {
 
     if (action === 'submit_notice') {
       const vDate = vacatingDate ? new Date(vacatingDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const proratedRent = body.proratedRent ? Number(body.proratedRent) : null;
 
       const updatedLease = await prisma.lease.update({
         where: { id: leaseId },
@@ -283,7 +284,7 @@ export async function PUT(request: Request) {
           status: 'NOTICE_PERIOD',
           noticeDate: new Date(),
           vacatingDate: vDate,
-          noticeReason: noticeReason || 'Notice submitted via Tenant Portal.',
+          noticeReason: noticeReason || `Notice submitted. Planned vacating date: ${vDate.toLocaleDateString('en-IN')}${proratedRent ? ` | Prorated Final Rent: ₹${proratedRent.toLocaleString('en-IN')}` : ''}`,
         },
         include: { property: true, tenant: true, owner: true },
       });
@@ -298,6 +299,23 @@ export async function PUT(request: Request) {
         },
       });
 
+      // If prorated rent is specified, generate final prorated invoice
+      if (proratedRent && proratedRent > 0) {
+        await prisma.payment.create({
+          data: {
+            leaseId: lease.id,
+            propertyId: lease.propertyId,
+            userId: lease.tenantId,
+            title: `Final Prorated Rent (${vDate.toLocaleString('default', { month: 'short' })} ${vDate.getDate()} days)`,
+            amount: proratedRent,
+            type: 'RENT',
+            status: 'PENDING',
+            dueDate: vDate,
+            notes: `Calculated prorated rent for stay until ${vDate.toLocaleDateString('en-IN')}`,
+          },
+        });
+      }
+
       // Dispatch alert to Admin Hotline
       sendLeadNotificationToAdmin({
         leadId: `NOTICE-${lease.id.slice(0, 6)}`,
@@ -309,11 +327,45 @@ export async function PUT(request: Request) {
         propertyLocation: lease.property.location,
         ownerName: lease.owner.name,
         ownerPhone: lease.owner.phone || undefined,
-        message: `📢 NOTICE TO VACATE SUBMITTED: Tenant ${lease.tenant.name} will vacate on ${vDate.toLocaleDateString('en-IN')}. Property is now opened for advance pre-booking.`,
+        message: `📢 NOTICE TO VACATE SUBMITTED: Tenant ${lease.tenant.name} will vacate on ${vDate.toLocaleDateString('en-IN')}.${proratedRent ? ` Prorated final rent: ₹${proratedRent.toLocaleString('en-IN')}.` : ''} Property is now opened for advance pre-booking.`,
       }).catch((err: any) => console.error('Notice alert error:', err));
 
       return NextResponse.json({
         message: `Notice to vacate submitted for ${vDate.toLocaleDateString('en-IN')}. Property is now listed for advance booking.`,
+        lease: formatLease(updatedLease),
+      });
+    } else if (action === 'renew_lease') {
+      const addMonths = Number(body.renewalMonths || body.months || 11);
+      const newMonthlyRent = body.monthlyRent ? Number(body.monthlyRent) : lease.monthlyRent;
+      const currentEnd = new Date(lease.endDate);
+      const newEnd = new Date(currentEnd);
+      newEnd.setMonth(newEnd.getMonth() + addMonths);
+
+      const updatedLease = await prisma.lease.update({
+        where: { id: leaseId },
+        data: {
+          endDate: newEnd,
+          durationMonths: lease.durationMonths + addMonths,
+          monthlyRent: newMonthlyRent,
+          status: 'ACTIVE',
+          noticeDate: null,
+          vacatingDate: null,
+          noticeReason: `Agreement renewed for +${addMonths} months until ${newEnd.toLocaleDateString('en-IN')}${newMonthlyRent !== lease.monthlyRent ? ` | Revised Rent: ₹${newMonthlyRent.toLocaleString('en-IN')}` : ''}`,
+        },
+        include: { property: true, tenant: true, owner: true },
+      });
+
+      await prisma.property.update({
+        where: { id: lease.propertyId },
+        data: {
+          occupancyStatus: 'occupied',
+          isAvailable: false,
+          vacantFromDate: null,
+        },
+      });
+
+      return NextResponse.json({
+        message: `Tenancy agreement renewed for ${addMonths} months until ${newEnd.toLocaleDateString('en-IN')}.`,
         lease: formatLease(updatedLease),
       });
     } else if (action === 'terminate_or_complete') {

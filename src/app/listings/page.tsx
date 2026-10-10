@@ -32,6 +32,109 @@ interface PropertyItem {
   availability?: string;
 }
 
+// City localities dictionary for instant dropdown suggestions
+const CITY_LOCALITIES: Record<string, string[]> = {
+  Pune: [
+    'Hinjawadi Phase 1',
+    'Hinjawadi Phase 2',
+    'Hinjawadi Phase 3',
+    'Wakad',
+    'Baner',
+    'Balewadi',
+    'Shivaji Nagar',
+    'Kharadi',
+    'Viman Nagar',
+    'Kothrud',
+    'Aundh',
+    'Pimple Saudagar',
+    'Pimple Nilakh',
+    'Bavdhan',
+    'Ravet',
+    'Tathawade',
+    'Maan',
+    'Marunji',
+    'Hadapsar',
+    'Magarpatta',
+    'Koregaon Park',
+    'Senapati Bapat Road',
+    'Kalyani Nagar',
+    'Dhanori',
+    'Vishrantwadi'
+  ],
+  Bangalore: [
+    'Whitefield',
+    'Electronic City',
+    'HSR Layout',
+    'Koramangala',
+    'Indiranagar',
+    'Bellandur',
+    'Marathahalli',
+    'Sarjapur Road',
+    'BTM Layout',
+    'Hebbal',
+    'Yelahanka',
+    'Jayanagar'
+  ],
+  Hyderabad: [
+    'Gachibowli',
+    'Hitec City',
+    'Madhapur',
+    'Kondapur',
+    'Kukatpally',
+    'Banjara Hills',
+    'Jubilee Hills',
+    'Manikonda',
+    'Financial District',
+    'Hafeezpet'
+  ],
+  Mumbai: [
+    'Andheri West',
+    'Andheri East',
+    'Bandra West',
+    'Powai',
+    'Thane West',
+    'Navi Mumbai',
+    'Borivali West',
+    'Goregaon East',
+    'Malad West',
+    'Worli'
+  ],
+  Delhi: [
+    'Connaught Place',
+    'Hauz Khas',
+    'South Extension',
+    'Dwarka',
+    'Saket',
+    'Vasant Kunj',
+    'Karol Bagh',
+    'Lajpat Nagar',
+    'Rohini'
+  ],
+  Gurgaon: [
+    'Cyber City',
+    'Golf Course Road',
+    'Golf Course Ext Road',
+    'Sohna Road',
+    'DLF Phase 1',
+    'DLF Phase 2',
+    'DLF Phase 3',
+    'DLF Phase 4',
+    'DLF Phase 5',
+    'Sector 57',
+    'Sector 48'
+  ],
+  Noida: [
+    'Sector 62',
+    'Sector 18',
+    'Sector 137',
+    'Sector 76',
+    'Sector 50',
+    'Sector 128',
+    'Sector 150',
+    'Greater Noida West'
+  ]
+};
+
 function ListingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,7 +142,7 @@ function ListingsContent() {
   // Load initial filters from URL query parameters
   const [filters, setFilters] = useState({
     location: searchParams.get('location') || '',
-    city: searchParams.get('city') || 'Hyderabad',
+    city: searchParams.get('city') || 'Pune',
     propertyType: searchParams.get('propertyType') || 'all',
     bhk: searchParams.get('bhk') || 'all',
     maxPrice: searchParams.get('maxPrice') || 'all',
@@ -71,6 +174,7 @@ function ListingsContent() {
 
   // Filter dropdown state switches
   const [isCityOpen, setIsCityOpen] = useState(false);
+  const [isLocalityOpen, setIsLocalityOpen] = useState(false);
   const [isPropOpen, setIsPropOpen] = useState(false);
   const [isBhkOpen, setIsBhkOpen] = useState(false);
   const [isTenantOpen, setIsTenantOpen] = useState(false);
@@ -399,18 +503,148 @@ function ListingsContent() {
 
             <div className="inline-divider"></div>
 
-            {/* Locality Search Field */}
-            <div className="locality-inline-search">
+            {/* Locality Search Field with Pune & City Autocomplete */}
+            <div className="locality-inline-search" style={{ position: 'relative' }}>
               <input 
                 type="text" 
-                placeholder="Search Locality, Landmark or Tech Park"
+                placeholder="Search Locality, Landmark or Tech Park (e.g. Hinjawadi, Wakad, Baner)"
                 value={filters.location}
-                onChange={(e) => updateFilter('location', e.target.value)}
+                onChange={(e) => {
+                  updateFilter('location', e.target.value);
+                  setIsLocalityOpen(true);
+                }}
+                onFocus={() => setIsLocalityOpen(true)}
                 className="locality-input-field"
+                style={{ paddingRight: filters.location ? '2rem' : '0.5rem' }}
               />
+
+              {/* Clear button */}
+              {filters.location && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateFilter('location', '');
+                    setIsLocalityOpen(false);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    lineHeight: 1,
+                  }}
+                  title="Clear locality"
+                >
+                  ✕
+                </button>
+              )}
+
+              {/* Locality Autocomplete Dropdown Popup */}
+              {isLocalityOpen && (
+                <>
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 899,
+                    }}
+                    onClick={() => setIsLocalityOpen(false)}
+                  />
+                  <div
+                    className="card animate-fadeIn"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      left: 0,
+                      width: '100%',
+                      minWidth: '300px',
+                      maxHeight: '280px',
+                      overflowY: 'auto',
+                      backgroundColor: '#ffffff',
+                      boxShadow: '0 12px 28px -4px rgba(15, 23, 42, 0.2)',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      zIndex: 900,
+                      padding: '0.4rem 0',
+                    }}
+                  >
+                    <div style={{ padding: '0.35rem 0.85rem', fontSize: '0.725rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {filters.location.trim()
+                        ? `Matching Localities`
+                        : `Popular Localities in ${filters.city}`}
+                    </div>
+                    {(() => {
+                      const activeCityLocalities = CITY_LOCALITIES[filters.city] || CITY_LOCALITIES['Pune'] || [];
+                      const suggested = filters.location.trim()
+                        ? Object.entries(CITY_LOCALITIES).flatMap(([cName, locs]) =>
+                            locs
+                              .filter((loc) => loc.toLowerCase().includes(filters.location.trim().toLowerCase()))
+                              .map((loc) => ({ locality: loc, city: cName }))
+                          )
+                        : activeCityLocalities.map((loc) => ({ locality: loc, city: filters.city }));
+
+                      if (suggested.length === 0) {
+                        return (
+                          <div style={{ padding: '0.75rem 1rem', fontSize: '0.825rem', color: '#64748b' }}>
+                            No exact locality found for "{filters.location}". Press search to browse all.
+                          </div>
+                        );
+                      }
+
+                      return suggested.slice(0, 15).map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            updateFilter('location', item.locality);
+                            if (item.city !== filters.city) {
+                              updateFilter('city', item.city);
+                            }
+                            setIsLocalityOpen(false);
+                          }}
+                          style={{
+                            padding: '0.55rem 0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.85rem',
+                            color: '#0f172a',
+                            borderBottom: '1px solid #f8fafc',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.9rem' }}>📍</span>
+                            <strong>{item.locality}</strong>
+                          </div>
+                          <span style={{ fontSize: '0.725rem', color: '#64748b', backgroundColor: '#f1f5f9', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            {item.city}
+                          </span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </>
+              )}
             </div>
             
-            <button type="button" className="inline-search-btn-exact" aria-label="Submit Search">
+            <button 
+              type="button" 
+              className="inline-search-btn-exact" 
+              aria-label="Submit Search"
+              onClick={() => setIsLocalityOpen(false)}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="search-svg-icon-sm">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>

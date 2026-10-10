@@ -3,12 +3,29 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import SweetAlertModal, { AlertOptions } from '@/components/SweetAlertModal';
 
 export default function TenantDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState('rent');
+
+  // SweetAlert modal state
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    options: AlertOptions | null;
+  }>({
+    isOpen: false,
+    options: null,
+  });
+
+  const showAlert = (options: AlertOptions) => {
+    setAlertConfig({
+      isOpen: true,
+      options,
+    });
+  };
   
   // Data states
   const [leads, setLeads] = useState<any[]>([]);
@@ -42,10 +59,20 @@ export default function TenantDashboard() {
   const [payProcessing, setPayProcessing] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
+  // Move Out / Notice State
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [vacatingDate, setVacatingDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [noticeReason, setNoticeReason] = useState('Job relocation / personal reasons');
+  const [submittingNotice, setSubmittingNotice] = useState(false);
+
   // Protect client route
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login');
+      router.push('/');
     } else if (!authLoading && user && user.role !== 'tenant') {
       router.push('/');
     }
@@ -175,6 +202,53 @@ export default function TenantDashboard() {
     }
   };
 
+  // Handle Notice to Vacate submission
+  const handleSubmitNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeLease) return;
+    setSubmittingNotice(true);
+    try {
+      const selDate = new Date(vacatingDate);
+      const dayOfMonth = selDate.getDate();
+      const daysInMonth = new Date(selDate.getFullYear(), selDate.getMonth() + 1, 0).getDate();
+      const dailyRent = Math.round((activeLease.monthlyRent || 0) / daysInMonth);
+      const proratedRent = dailyRent * dayOfMonth;
+
+      const res = await fetch('/api/leases', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leaseId: activeLease._id || activeLease.id,
+          action: 'submit_notice',
+          vacatingDate,
+          noticeReason,
+          proratedRent,
+        }),
+      });
+
+      if (res.ok) {
+        setShowNoticeModal(false);
+        fetchData();
+        showAlert({
+          title: 'Notice Submitted',
+          text: 'Notice to vacate successfully sent to landlord & administrator.',
+          type: 'success',
+        });
+      } else {
+        const data = await res.json();
+        showAlert({
+          title: 'Notice Failed',
+          text: data.error || 'Failed to submit notice to vacate',
+          type: 'error',
+        });
+      }
+    } catch (err) {
+      console.error('Notice error:', err);
+    } finally {
+      setSubmittingNotice(false);
+    }
+  };
+
   // Handle Rent Payment
   const handleCompletePayment = async () => {
     if (!payModalItem) return;
@@ -192,9 +266,18 @@ export default function TenantDashboard() {
       if (res.ok) {
         setPayModalItem(null);
         fetchData();
+        showAlert({
+          title: 'Payment Successful',
+          text: 'Rent payment processed successfully and receipt generated.',
+          type: 'success',
+        });
       } else {
         const data = await res.json();
-        alert(data.error || 'Payment failed');
+        showAlert({
+          title: 'Payment Failed',
+          text: data.error || 'Payment failed',
+          type: 'error',
+        });
       }
     } catch (err) {
       console.error('Payment error:', err);
@@ -429,6 +512,37 @@ export default function TenantDashboard() {
                           <div><strong>📅 Agreement Term:</strong> {new Date(activeLease.startDate).toLocaleDateString('en-IN')} &rarr; {new Date(activeLease.endDate).toLocaleDateString('en-IN')} ({activeLease.durationMonths} Months)</div>
                           <div><strong>👤 Property Owner / Landlord:</strong> {activeLease.owner?.name} {activeLease.owner?.phone ? `(📞 ${activeLease.owner.phone})` : ''}</div>
                         </div>
+
+                        {/* Notice Status or Move Out Action */}
+                        {activeLease.status === 'NOTICE_PERIOD' ? (
+                          <div style={{ marginTop: '1.25rem', padding: '1rem 1.25rem', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <span style={{ fontSize: '1.5rem' }}>⏳</span>
+                              <div>
+                                <h4 style={{ margin: 0, color: '#92400e', fontSize: '0.925rem', fontWeight: '700' }}>Notice Period Active</h4>
+                                <p style={{ margin: '0.2rem 0 0 0', color: '#b45309', fontSize: '0.825rem' }}>
+                                  You are scheduled to vacate on <strong>{activeLease.vacatingDate ? new Date(activeLease.vacatingDate).toLocaleDateString('en-IN') : 'N/A'}</strong>.
+                                </p>
+                                {activeLease.noticeReason && (
+                                  <span style={{ display: 'block', fontSize: '0.775rem', color: '#92400e', marginTop: '0.25rem' }}>
+                                    {activeLease.noticeReason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                            <button
+                              type="button"
+                              onClick={() => setShowNoticeModal(true)}
+                              className="btn btn-secondary"
+                              style={{ color: '#dc2626', borderColor: '#fca5a5', backgroundColor: '#fef2f2', padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: '600' }}
+                            >
+                              📢 Submit Move-Out Notice (30 Days Notice)
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -698,6 +812,126 @@ export default function TenantDashboard() {
           </div>
         </div>
       )}
+
+      {/* MOVE OUT / NOTICE MODAL */}
+      {showNoticeModal && activeLease && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div className="card animate-fadeIn" style={{ maxWidth: '520px', width: '100%', padding: '2rem', backgroundColor: '#ffffff', borderRadius: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a', fontWeight: '800' }}>Submit Notice to Vacate</h3>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Schedule your move-out &amp; view prorated rent breakdown</span>
+              </div>
+              <button type="button" onClick={() => setShowNoticeModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSubmitNotice}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Rented Property</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  disabled
+                  value={`${activeLease.property?.title} (₹${activeLease.monthlyRent?.toLocaleString('en-IN')}/mo)`}
+                  style={{ backgroundColor: '#f8fafc', color: '#475569' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label">Select Planned Move-Out / Vacating Date *</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  required
+                  value={vacatingDate}
+                  onChange={(e) => setVacatingDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+                <span style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.35rem', display: 'block' }}>
+                  Standard policy: 30 days advance notice before key handover.
+                </span>
+              </div>
+
+              {/* Real-Time Prorated Rent & Settlement Breakdown */}
+              {(() => {
+                const sDate = new Date(vacatingDate);
+                const dom = sDate.getDate();
+                const dim = new Date(sDate.getFullYear(), sDate.getMonth() + 1, 0).getDate();
+                const daily = Math.round((activeLease.monthlyRent || 0) / dim);
+                const calcProrated = daily * dom;
+
+                return (
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '1rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+                    <div style={{ fontWeight: '700', color: '#166534', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>📊 Final Month Rent Calculation</span>
+                      <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#15803d', fontSize: '0.7rem' }}>
+                        {sDate.toLocaleString('default', { month: 'short' })} {sDate.getFullYear()} ({dom} Days Stay)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#334155' }}>
+                      <span>Full Monthly Rent:</span>
+                      <strong>₹{activeLease.monthlyRent?.toLocaleString('en-IN')}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#334155' }}>
+                      <span>Daily Rent Rate (₹{activeLease.monthlyRent} / {dim} days):</span>
+                      <strong>₹{daily}/day</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#334155' }}>
+                      <span>Stay Duration in Final Month:</span>
+                      <strong>{dom} Days (1st to {dom}th)</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0 0 0', marginTop: '0.5rem', borderTop: '1px solid #86efac', fontSize: '0.95rem', color: '#14532d' }}>
+                      <span style={{ fontWeight: '700' }}>Calculated Prorated Rent:</span>
+                      <strong style={{ color: '#059669', fontSize: '1.1rem' }}>₹{calcProrated.toLocaleString('en-IN')}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0 0 0', fontSize: '0.775rem', color: '#047857' }}>
+                      <span>Security Deposit in Escrow (to be refunded):</span>
+                      <span>₹{activeLease.securityDeposit?.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label">Reason for Leaving / Handover Note</label>
+                <textarea
+                  className="form-input"
+                  rows={2}
+                  placeholder="e.g. Relocating to new office / Buying own home"
+                  value={noticeReason}
+                  onChange={(e) => setNoticeReason(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="submit"
+                  disabled={submittingNotice}
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: '0.65rem', backgroundColor: '#dc2626' }}
+                >
+                  {submittingNotice ? 'Submitting Notice...' : 'Confirm & Submit Vacate Notice'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNoticeModal(false)}
+                  className="btn btn-secondary"
+                  style={{ flex: 1, padding: '0.65rem' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SweetAlert Popup / Confirmation Modal */}
+      <SweetAlertModal
+        isOpen={alertConfig.isOpen}
+        options={alertConfig.options}
+        onClose={() => setAlertConfig({ isOpen: false, options: null })}
+      />
     </div>
   );
 }

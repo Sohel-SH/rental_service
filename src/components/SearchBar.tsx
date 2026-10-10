@@ -126,8 +126,123 @@ export default function SearchBar() {
     }
   ];
 
+  // City localities dictionary for instant dropdown suggestions
+  const CITY_LOCALITIES: Record<string, string[]> = {
+    Pune: [
+      'Hinjawadi Phase 1',
+      'Hinjawadi Phase 2',
+      'Hinjawadi Phase 3',
+      'Wakad',
+      'Baner',
+      'Balewadi',
+      'Shivaji Nagar',
+      'Kharadi',
+      'Viman Nagar',
+      'Kothrud',
+      'Aundh',
+      'Pimple Saudagar',
+      'Pimple Nilakh',
+      'Bavdhan',
+      'Ravet',
+      'Tathawade',
+      'Maan',
+      'Marunji',
+      'Hadapsar',
+      'Magarpatta',
+      'Koregaon Park',
+      'Senapati Bapat Road',
+      'Kalyani Nagar',
+      'Dhanori',
+      'Vishrantwadi'
+    ],
+    Bangalore: [
+      'Whitefield',
+      'Electronic City',
+      'HSR Layout',
+      'Koramangala',
+      'Indiranagar',
+      'Bellandur',
+      'Marathahalli',
+      'Sarjapur Road',
+      'BTM Layout',
+      'Hebbal',
+      'Yelahanka',
+      'Jayanagar'
+    ],
+    Hyderabad: [
+      'Gachibowli',
+      'Hitec City',
+      'Madhapur',
+      'Kondapur',
+      'Kukatpally',
+      'Banjara Hills',
+      'Jubilee Hills',
+      'Manikonda',
+      'Financial District',
+      'Hafeezpet'
+    ],
+    Mumbai: [
+      'Andheri West',
+      'Andheri East',
+      'Bandra West',
+      'Powai',
+      'Thane West',
+      'Navi Mumbai',
+      'Borivali West',
+      'Goregaon East',
+      'Malad West',
+      'Worli'
+    ],
+    Delhi: [
+      'Connaught Place',
+      'Hauz Khas',
+      'South Extension',
+      'Dwarka',
+      'Saket',
+      'Lajpat Nagar',
+      'Rohini',
+      'Greater Kailash',
+      'Vasant Kunj'
+    ],
+    Gurgaon: [
+      'Cyber City',
+      'Golf Course Road',
+      'Golf Course Ext Road',
+      'Sohna Road',
+      'DLF Phase 1',
+      'DLF Phase 2',
+      'DLF Phase 3',
+      'DLF Phase 5',
+      'Sector 56',
+      'Sector 57'
+    ],
+    Noida: [
+      'Sector 62',
+      'Sector 137',
+      'Sector 76',
+      'Sector 150',
+      'Sector 18',
+      'Sector 128',
+      'Sector 50',
+      'Greater Noida West'
+    ]
+  };
+
+  const [isLocalityDropdownOpen, setIsLocalityDropdownOpen] = useState(false);
+
+  // Get available localities for current city
+  const activeCityLocalities = CITY_LOCALITIES[city] || CITY_LOCALITIES['Pune'];
+
+  // Filter localities based on typed input
+  const filteredLocalities = location.trim()
+    ? activeCityLocalities.filter((loc) =>
+        loc.toLowerCase().includes(location.toLowerCase())
+      )
+    : activeCityLocalities.slice(0, 10); // Show top popular localities when input is empty
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLocalityDropdownOpen(false);
     const query = new URLSearchParams();
     
     if (location) query.append('location', location);
@@ -144,6 +259,11 @@ export default function SearchBar() {
     }
 
     router.push(`/listings?${query.toString()}`);
+  };
+
+  const handleSelectLocality = (loc: string) => {
+    setLocation(loc);
+    setIsLocalityDropdownOpen(false);
   };
 
   return (
@@ -198,11 +318,11 @@ export default function SearchBar() {
       </div>
 
       {/* Main Pill-Shaped Input Form */}
-      <form onSubmit={handleSearch} className="main-search-pill-form">
+      <form onSubmit={handleSearch} className="main-search-pill-form" style={{ position: 'relative' }}>
         
         {/* Custom City Dropdown Selector */}
         <div className="city-selector-box-custom">
-          <div className="city-trigger-area" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+          <div className="city-trigger-area" onClick={() => { setIsDropdownOpen(!isDropdownOpen); setIsLocalityDropdownOpen(false); }}>
             <span className="city-trigger-text">{city}</span>
             <span className={`dropdown-arrow-icon-custom ${isDropdownOpen ? 'open' : ''}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="chevron-svg">
@@ -243,15 +363,88 @@ export default function SearchBar() {
         {/* Vertical Divider */}
         <div className="pill-vertical-divider"></div>
 
-        {/* Locality Search Input */}
-        <div className="locality-search-box">
+        {/* Locality Search Input & Live Suggestions */}
+        <div className="locality-search-box" style={{ position: 'relative' }}>
           <input
             type="text"
-            placeholder="Search Locality, Landmark or Tech Park"
+            placeholder={`Search Locality in ${city} (e.g. Hinjawadi, Wakad, Baner)`}
             className="locality-text-input"
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            onFocus={() => setIsLocalityDropdownOpen(true)}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              setIsLocalityDropdownOpen(true);
+            }}
           />
+
+          {/* Live Locality Suggestion Dropdown */}
+          {isLocalityDropdownOpen && (
+            <>
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 998,
+                }}
+                onClick={() => setIsLocalityDropdownOpen(false)}
+              />
+              <div
+                className="locality-dropdown-suggestions card animate-fadeIn"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  right: 0,
+                  minWidth: '280px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '14px',
+                  boxShadow: '0 15px 35px -5px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0,0,0,0.06)',
+                  zIndex: 999,
+                  maxHeight: '280px',
+                  overflowY: 'auto',
+                  padding: '0.5rem 0',
+                }}
+              >
+                <div style={{ padding: '0.4rem 1rem 0.3rem 1rem', fontSize: '0.725rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {location.trim() ? `Matching Localities in ${city}` : `Popular Localities in ${city}`}
+                </div>
+                {filteredLocalities.length > 0 ? (
+                  filteredLocalities.map((loc) => (
+                    <div
+                      key={loc}
+                      onClick={() => handleSelectLocality(loc)}
+                      style={{
+                        padding: '0.65rem 1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.65rem',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease',
+                        fontSize: '0.875rem',
+                        color: '#1e293b',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <span style={{ fontSize: '1rem', color: '#dc2626' }}>📍</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '600' }}>{loc}</span>
+                        <span style={{ fontSize: '0.725rem', color: '#94a3b8' }}>{city}, Maharashtra</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '0.85rem 1rem', fontSize: '0.825rem', color: '#94a3b8', textAlign: 'center' }}>
+                    No specific locality matched. Press search to query &quot;{location}&quot;
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Search Magnifying Glass Icon Button */}

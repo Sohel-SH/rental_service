@@ -63,26 +63,39 @@ function parseDatabaseUrl(urlStr?: string) {
 
 const dbConfig = parseDatabaseUrl(process.env.DATABASE_URL);
 
-// Initialize MariaDB connection adapter with parsed individual options
-const adapter = new PrismaMariaDb({
-  host: dbConfig.host,
-  port: dbConfig.port,
-  user: dbConfig.user,
-  password: dbConfig.password,
-  database: dbConfig.database,
-  ssl: dbConfig.ssl,
-  connectTimeout: 15000,
-  connectionLimit: 10,
-});
+// Use global singleton for both adapter and prisma client to prevent connection pool exhaustion on Next.js hot-reloads
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  adapter?: PrismaMariaDb;
+};
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const adapter =
+  globalForPrisma.adapter ||
+  new PrismaMariaDb({
+    host: dbConfig.host,
+    port: dbConfig.port,
+    user: dbConfig.user,
+    password: dbConfig.password,
+    database: dbConfig.database,
+    ssl: dbConfig.ssl,
+    connectTimeout: 20000,
+    socketTimeout: 45000,
+    keepAliveDelay: 10000, // Sends TCP keepalive so cloud firewalls / Aiven don't drop idle connections
+    idleTimeout: 60, // Recycles connections idle for >60s to prevent sending queries to dead sockets
+    connectionLimit: 5, // Safe pool limit for cloud & serverless instances
+    compress: true,
+  });
 
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     adapter,
-    log: ['error', 'warn'],
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+  globalForPrisma.adapter = adapter;
+}
+
 export default prisma;
